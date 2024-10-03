@@ -13,9 +13,9 @@ public interface IApiClient
     /// <summary>
     /// Initializes the API client with a base URI and an optional flag for logging request and response details.
     /// </summary>
-    /// <param name="baseUri">The base URI for the API.</param>
+    /// <param name="baseAddress">The base URI for the API.</param>
     /// <param name="requestResponseLogging">Indicates whether request and response logging should be enabled.</param>
-    void Initialize(string baseUri, bool requestResponseLogging);
+    void Initialize(string baseAddress, bool requestResponseLogging);
 
     /// <summary>
     /// Asynchronously retrieves the current access token for the API client.

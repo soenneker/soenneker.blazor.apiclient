@@ -31,7 +31,7 @@ public class ApiClient : IApiClient
 
     private DateTime? _jwtExpiration;
 
-    private string? _baseUri;
+    private string? _baseAddress;
     private bool _requestResponseLogging;
 
     public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
@@ -42,21 +42,31 @@ public class ApiClient : IApiClient
         _httpClientCache = httpClientCache;
     }
 
-    public void Initialize(string baseUri, bool requestResponseLogging)
+    public void Initialize(string baseAddress, bool requestResponseLogging)
     {
-        _baseUri = baseUri;
+        _baseAddress = baseAddress;
         _requestResponseLogging = requestResponseLogging;
     }
 
-    // TODO: Handle exceptions
-    public ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
         string clientName = GetClientName(allowAnonymous);
 
-        if (allowAnonymous.GetValueOrDefault())
-            return _httpClientCache.Get(clientName, cancellationToken: cancellationToken);
+        HttpClient client;
 
-        return _httpClientCache.Get(clientName, new HttpClientOptions { ModifyClient = ModifyClient }, cancellationToken);
+        if (allowAnonymous.GetValueOrDefault())
+        {
+            client = await _httpClientCache.Get(clientName, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            client = await _httpClientCache.Get(clientName, new HttpClientOptions {ModifyClient = ModifyClient}, cancellationToken);
+        }
+
+        if (!_baseAddress.IsNullOrEmpty())
+            client.BaseAddress = new Uri(_baseAddress);
+
+        return client;
     }
 
     private static string GetClientName(bool? allowAnonymous = false)
@@ -107,9 +117,6 @@ public class ApiClient : IApiClient
     {
         string accessToken = await GetAccessToken().NoSync();
         httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, $"bearer {accessToken}");
-
-        if (!_baseUri.IsNullOrEmpty())
-            httpClient.BaseAddress = new Uri(_baseUri);
     }
 
     public async ValueTask<HttpResponseMessage> Get(string requestUri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
