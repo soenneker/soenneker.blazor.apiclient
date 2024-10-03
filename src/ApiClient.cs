@@ -98,7 +98,7 @@ public class ApiClient : IApiClient
         HttpResponseMessage response = await client.PostAsync(requestUri, httpContent, cancellationToken).NoSync();
 
         if (logResponse)
-            await LogResponse(response, cancellationToken);
+            await LogResponse(response, cancellationToken).NoSync();
 
         return response;
     }
