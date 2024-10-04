@@ -54,17 +54,21 @@ public class ApiClient : IApiClient
 
         HttpClient client;
 
+        var httpClientOptions = new HttpClientOptions();
+
+        if (!_baseAddress.IsNullOrEmpty())
+            httpClientOptions.BaseAddress = _baseAddress;
+
         if (allowAnonymous.GetValueOrDefault())
         {
-            client = await _httpClientCache.Get(clientName, cancellationToken: cancellationToken);
+            client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken: cancellationToken).NoSync();
         }
         else
         {
-            client = await _httpClientCache.Get(clientName, new HttpClientOptions {ModifyClient = ModifyClient}, cancellationToken);
-        }
+            httpClientOptions.ModifyClient = ModifyClient;
 
-        if (!_baseAddress.IsNullOrEmpty())
-            client.BaseAddress = new Uri(_baseAddress);
+            client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
+        }
 
         return client;
     }
