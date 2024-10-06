@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Soenneker.Blazor.ApiClient.Abstract;
+using Soenneker.Blazor.LogJson.Registrars;
 using Soenneker.Blazor.Utils.Session.Registrars;
 using Soenneker.Utils.HttpClientCache.Registrar;
 
@@ -16,6 +17,7 @@ public static class ApiClientRegistrar
     /// </summary>
     public static void AddApiClientAsScoped(this IServiceCollection services)
     {
+        services.AddLogJson();
         services.AddSessionUtil();
         services.AddHttpClientCache();
         services.TryAddScoped<IApiClient, ApiClient>();
