@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.Net.Http.Headers;
 using Soenneker.Blazor.ApiClient.Abstract;
+using Soenneker.Blazor.ApiClient.Dtos;
 using Soenneker.Blazor.LogJson.Abstract;
 using Soenneker.Blazor.Utils.Session.Abstract;
 using Soenneker.Extensions.DateTimeOffset;
@@ -98,20 +99,21 @@ public class ApiClient : IApiClient
         return accessToken.Value;
     }
 
-    public async ValueTask<HttpResponseMessage> Post(string requestUri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
     {
         HttpContent? httpContent = null;
 
-        if (obj != null)
-            httpContent = obj.ToHttpContent();
+        if (options.Object != null)
+            httpContent = options.Object.ToHttpContent();
 
-        HttpClient client = await GetClient(false, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        await LogRequest($"{client.BaseAddress}{requestUri}", httpContent, HttpMethod.Post, cancellationToken).NoSync();
+        if (options.LogRequest)
+            await LogRequest($"{client.BaseAddress}{options.Uri}", httpContent, HttpMethod.Post, cancellationToken).NoSync();
 
-        HttpResponseMessage response = await client.PostAsync(requestUri, httpContent, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.PostAsync(options.Uri, httpContent, cancellationToken).NoSync();
 
-        if (logResponse)
+        if (options.LogResponse)
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
@@ -123,64 +125,73 @@ public class ApiClient : IApiClient
         httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, $"bearer {accessToken}");
     }
 
-    public async ValueTask<HttpResponseMessage> Get(string requestUri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        await LogRequest(requestUri, null, HttpMethod.Get, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        HttpClient client = await GetClient(allowAnonymous, cancellationToken).NoSync();
+        if (options.LogRequest)
+            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Get, cancellationToken).NoSync();
 
-        HttpResponseMessage response = await client.GetAsync(requestUri, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.GetAsync(options.Uri, cancellationToken).NoSync();
 
-        await LogResponse(response, cancellationToken).NoSync();
+        if (options.LogResponse)
+            await LogResponse(response, cancellationToken).NoSync();
 
         return response;
     }
 
-    public async ValueTask<HttpResponseMessage> Put(string requestUri, object obj, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        var httpContent = obj.ToHttpContent();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        await LogRequest(requestUri, httpContent, HttpMethod.Put, cancellationToken).NoSync();
+        if (options.LogRequest)
+            await LogRequest($"{client.BaseAddress}{options.Uri}", options.Object.ToHttpContent(), HttpMethod.Put, cancellationToken).NoSync();
 
-        HttpClient client = await GetClient(false, cancellationToken).NoSync();
-        HttpResponseMessage response = await client.PutAsync(requestUri, httpContent, cancellationToken).NoSync();
+        var httpContent = options.Object.ToHttpContent();
 
-        await LogResponse(response, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.PutAsync(options.Uri, httpContent, cancellationToken).NoSync();
+
+        if (options.LogResponse)
+            await LogResponse(response, cancellationToken).NoSync();
 
         return response;
     }
 
-    public async ValueTask<HttpResponseMessage> Delete(string requestUri, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        HttpClient client = await GetClient(false, cancellationToken).NoSync();
-        HttpResponseMessage response = await client.DeleteAsync(requestUri, cancellationToken).NoSync();
+        if (options.LogRequest)
+            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Delete, cancellationToken).NoSync();
 
-        await LogResponse(response, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.DeleteAsync(options.Uri, cancellationToken).NoSync();
+
+        if (options.LogResponse)
+            await LogResponse(response, cancellationToken).NoSync();
 
         return response;
     }
 
-    public async ValueTask<HttpResponseMessage> Upload(string requestUri, Stream stream, string fileName, object? obj = null, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default)
     {
-        await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken).NoSync();
-
         using var content = new MultipartFormDataContent();
-        var streamContent = new StreamContent(stream);
+        var streamContent = new StreamContent(options.Stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        content.Add(streamContent, "file", fileName);
+        content.Add(streamContent, "file", options.FileName);
 
-        if (obj != null)
+        if (options.Object != null)
         {
-            string? json = JsonUtil.Serialize(obj);
+            string? json = JsonUtil.Serialize(options.Object);
             var jsonContent = new StringContent(json!, Encoding.UTF8, "application/json");
             content.Add(jsonContent, "json");
         }
 
         HttpClient client = await GetClient(cancellationToken: cancellationToken).NoSync();
 
-        HttpResponseMessage response = await client.PostAsync(requestUri, content, cancellationToken).NoSync();
+        if (options.LogRequest)
+            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Post, cancellationToken).NoSync();
+
+        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
         response.EnsureSuccessStatusCode();
         return response;
     }
