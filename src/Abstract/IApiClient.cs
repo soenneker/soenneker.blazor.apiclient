@@ -41,6 +41,8 @@ public interface IApiClient
     /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default);
 
+    ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Asynchronously sends a GET request to the specified URI.
     /// </summary>
@@ -48,6 +50,8 @@ public interface IApiClient
     /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default);
+
+    ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Asynchronously sends a PUT request to the specified URI with an object payload.
@@ -57,6 +61,8 @@ public interface IApiClient
     /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default);
 
+    ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Asynchronously sends a DELETE request to the specified URI.
     /// </summary>
@@ -64,6 +70,8 @@ public interface IApiClient
     /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default);
+
+    ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Asynchronously uploads a file stream to the specified URI, with an optional object payload.

@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.Net.Http.Headers;
 using Soenneker.Blazor.ApiClient.Abstract;
@@ -53,23 +54,17 @@ public class ApiClient : IApiClient
     {
         string clientName = GetClientName(allowAnonymous);
 
-        HttpClient client;
-
         var httpClientOptions = new HttpClientOptions();
 
         if (!_baseAddress.IsNullOrEmpty())
             httpClientOptions.BaseAddress = _baseAddress;
 
-        if (allowAnonymous.GetValueOrDefault())
-        {
-            client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken: cancellationToken).NoSync();
-        }
-        else
+        if (!allowAnonymous.GetValueOrDefault())
         {
             httpClientOptions.ModifyClient = ModifyClient;
-
-            client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
         }
+
+        HttpClient client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
 
         return client;
     }
@@ -99,6 +94,13 @@ public class ApiClient : IApiClient
         return accessToken.Value;
     }
 
+    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default)
+    {
+        var options = new RequestOptions { Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse };
+
+        return Post(options, cancellationToken);
+    }
+
     public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
     {
         HttpContent? httpContent = null;
@@ -125,6 +127,13 @@ public class ApiClient : IApiClient
         httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, $"bearer {accessToken}");
     }
 
+    public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    {
+        var options = new RequestOptions { Uri = uri, AllowAnonymous = allowAnonymous, LogRequest = true, LogResponse = true };
+
+        return Get(options, cancellationToken);
+    }
+
     public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
@@ -138,6 +147,13 @@ public class ApiClient : IApiClient
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
+    }
+
+    public ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default)
+    {
+        var options = new RequestOptions { Uri = uri, Object = obj, LogRequest = true, LogResponse = true };
+
+        return Put(options, cancellationToken);
     }
 
     public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
@@ -155,6 +171,13 @@ public class ApiClient : IApiClient
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
+    }
+
+    public ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default)
+    {
+        var options = new RequestOptions { Uri = uri, LogRequest = true, LogResponse = true };
+
+        return Delete(options, cancellationToken);
     }
 
     public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
