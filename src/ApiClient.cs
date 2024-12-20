@@ -1,10 +1,8 @@
 using System;
-using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.Net.Http.Headers;
 using Soenneker.Blazor.ApiClient.Abstract;
