@@ -15,11 +15,13 @@ public static class ApiClientRegistrar
     /// <summary>
     /// Adds <see cref="IApiClient"/> as a scoped service. <para/>
     /// </summary>
-    public static void AddApiClientAsScoped(this IServiceCollection services)
+    public static IServiceCollection AddApiClientAsScoped(this IServiceCollection services)
     {
         services.AddLogJson();
-        services.AddSessionUtil();
+        services.AddSessionUtilAsScoped();
         services.AddHttpClientCache();
         services.TryAddScoped<IApiClient, ApiClient>();
+
+        return services;
     }
 }
