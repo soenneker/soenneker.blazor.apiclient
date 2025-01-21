@@ -62,9 +62,7 @@ public class ApiClient : IApiClient
             httpClientOptions.ModifyClient = ModifyClient;
         }
 
-        HttpClient client = await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
-
-        return client;
+        return await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
     }
 
     private static string GetClientName(bool? allowAnonymous = false)

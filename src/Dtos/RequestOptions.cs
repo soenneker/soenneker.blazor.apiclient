@@ -8,7 +8,7 @@ public record RequestOptions
     /// <summary>
     /// Gets or sets the URI for the API request.
     /// </summary>
-    public string Uri { get; set; } = default!;
+    public string Uri { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets an optional object that will be serialized and sent as the request body.
