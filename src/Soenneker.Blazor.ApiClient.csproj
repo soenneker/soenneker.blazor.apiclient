@@ -52,6 +52,6 @@
         <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="3.0.1875" />
         <PackageReference Include="Soenneker.Extensions.DateTimeOffset" Version="3.0.372" />
         <PackageReference Include="Soenneker.Extensions.HttpClient" Version="3.0.2839" />
-        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1476" />
+        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1478" />
     </ItemGroup>
 </Project>
