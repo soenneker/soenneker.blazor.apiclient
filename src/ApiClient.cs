@@ -34,6 +34,9 @@ public class ApiClient : IApiClient
     private string? _baseAddress;
     private bool _requestResponseLogging;
 
+    private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
+    private const string _authenticated = $"{nameof(ApiClient)}-authenticated";
+
     public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
     {
         _accessTokenProvider = accessTokenProvider;
@@ -50,7 +53,7 @@ public class ApiClient : IApiClient
 
     public async ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        string clientName = GetClientName(allowAnonymous);
+        string clientName = allowAnonymous.GetValueOrDefault() ? _anonymous : _authenticated;
 
         var httpClientOptions = new HttpClientOptions();
 
@@ -63,11 +66,6 @@ public class ApiClient : IApiClient
         }
 
         return await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
-    }
-
-    private static string GetClientName(bool? allowAnonymous = false)
-    {
-        return $"{nameof(ApiClient)}-{allowAnonymous}";
     }
 
     /// <summary>
