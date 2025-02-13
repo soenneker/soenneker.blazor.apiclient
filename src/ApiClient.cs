@@ -92,7 +92,7 @@ public class ApiClient : IApiClient
 
     public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions { Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse };
+        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse};
 
         return Post(options, cancellationToken);
     }
@@ -125,7 +125,7 @@ public class ApiClient : IApiClient
 
     public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions { Uri = uri, AllowAnonymous = allowAnonymous, LogRequest = true, LogResponse = true };
+        var options = new RequestOptions {Uri = uri, AllowAnonymous = allowAnonymous, LogRequest = true, LogResponse = true};
 
         return Get(options, cancellationToken);
     }
@@ -147,7 +147,7 @@ public class ApiClient : IApiClient
 
     public ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions { Uri = uri, Object = obj, LogRequest = true, LogResponse = true };
+        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = true};
 
         return Put(options, cancellationToken);
     }
@@ -171,7 +171,7 @@ public class ApiClient : IApiClient
 
     public ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions { Uri = uri, LogRequest = true, LogResponse = true };
+        var options = new RequestOptions {Uri = uri, LogRequest = true, LogResponse = true};
 
         return Delete(options, cancellationToken);
     }
@@ -193,10 +193,10 @@ public class ApiClient : IApiClient
 
     public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default)
     {
-        using var content = new MultipartFormDataContent();
-        var streamContent = new StreamContent(options.Stream);
-        streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        content.Add(streamContent, "file", options.FileName);
+        var content = new MultipartFormDataContent
+        {
+            {new StreamContent(options.Stream) {Headers = {ContentType = new MediaTypeHeaderValue("application/octet-stream")}}, "file", options.FileName}
+        };
 
         if (options.Object != null)
         {
@@ -210,9 +210,7 @@ public class ApiClient : IApiClient
         if (options.LogRequest)
             await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Post, cancellationToken).NoSync();
 
-        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
-        response.EnsureSuccessStatusCode();
-        return response;
+        return await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
     }
 
     private ValueTask LogRequest(string requestUri, HttpContent? httpContent = null, HttpMethod? httpMethod = null, CancellationToken cancellationToken = default)
