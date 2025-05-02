@@ -1,8 +1,4 @@
-using System;
-using System.Net.Http;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.Net.Http.Headers;
 using Soenneker.Blazor.ApiClient.Abstract;
@@ -17,6 +13,12 @@ using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.HttpClientCache.Dtos;
 using Soenneker.Utils.Json;
+using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
 
 namespace Soenneker.Blazor.ApiClient;
@@ -27,6 +29,7 @@ public class ApiClient : IApiClient
     private readonly IAccessTokenProvider _accessTokenProvider;
     private readonly ILogJsonInterop _logJsonInterop;
     private readonly IHttpClientCache _httpClientCache;
+    private readonly AuthenticationStateProvider _authStateProvider;
     private readonly ISessionUtil _sessionUtil;
 
     private DateTime? _jwtExpiration;
@@ -34,15 +37,21 @@ public class ApiClient : IApiClient
     private string? _baseAddress;
     private bool _requestResponseLogging;
 
+    private static readonly Encoding Utf8Encoding = new UTF8Encoding(false);
+    private static readonly string AuthScheme = "Bearer";
+    private static readonly MediaTypeHeaderValue ApplicationJsonMediaType = new("application/json");
+
     private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
     private const string _authenticated = $"{nameof(ApiClient)}-authenticated";
 
-    public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
+    public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache,
+        AuthenticationStateProvider authStateProvider)
     {
         _accessTokenProvider = accessTokenProvider;
         _sessionUtil = sessionUtil;
         _logJsonInterop = logJsonInterop;
         _httpClientCache = httpClientCache;
+        _authStateProvider = authStateProvider;
     }
 
     public void Initialize(string baseAddress, bool requestResponseLogging)
@@ -61,51 +70,45 @@ public class ApiClient : IApiClient
             httpClientOptions.BaseAddress = _baseAddress;
 
         if (!allowAnonymous.GetValueOrDefault())
-        {
             httpClientOptions.ModifyClient = ModifyClient;
-        }
 
         return await _httpClientCache.Get(clientName, httpClientOptions, cancellationToken).NoSync();
     }
 
-    /// <summary>
-    /// Fairly heavy operation
-    /// </summary>
     public async ValueTask<string> GetAccessToken()
     {
-        AccessTokenResult accessTokenResult = await _accessTokenProvider.RequestAccessToken().NoSync();
-        accessTokenResult.TryGetToken(out AccessToken? accessToken);
+        AuthenticationState state = await _authStateProvider.GetAuthenticationStateAsync().NoSync();
 
-        if (accessToken == null || accessToken.Value.IsNullOrEmpty())
+        if (state.User.Identity?.IsAuthenticated != true)
+            throw new InvalidOperationException("User is not authenticated");
+
+        AccessTokenResult result = await _accessTokenProvider.RequestAccessToken().NoSync();
+
+        if (!result.TryGetToken(out AccessToken? token) || token.Value.IsNullOrWhiteSpace())
         {
             await _sessionUtil.ExpireSession(false).NoSync();
-            throw new Exception("Access token was null or empty, expiring session");
+            throw new InvalidOperationException("Access token could not be acquired or was empty.");
         }
 
-        _jwtExpiration = accessToken.Expires.ToUtcDateTime();
+        _jwtExpiration = token.Expires.UtcDateTime;
         await _sessionUtil.UpdateWithAccessToken(_jwtExpiration.Value).NoSync();
 
-        return accessToken.Value;
+        return token.Value;
     }
 
     public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse};
-
         return Post(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken)
     {
-        HttpContent? httpContent = null;
-
-        if (options.Object != null)
-            httpContent = options.Object.ToHttpContent();
-
+        var httpContent = options.Object?.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
         if (options.LogRequest)
-            await LogRequest($"{client.BaseAddress}{options.Uri}", httpContent, HttpMethod.Post, cancellationToken).NoSync();
+            await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), httpContent, HttpMethod.Post, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.PostAsync(options.Uri, httpContent, cancellationToken).NoSync();
 
@@ -118,22 +121,21 @@ public class ApiClient : IApiClient
     private async ValueTask ModifyClient(HttpClient httpClient)
     {
         string accessToken = await GetAccessToken().NoSync();
-        httpClient.DefaultRequestHeaders.Add(HeaderNames.Authorization, $"bearer {accessToken}");
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
     }
 
     public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions {Uri = uri, AllowAnonymous = allowAnonymous, LogRequest = true, LogResponse = true};
-
         return Get(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken)
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
         if (options.LogRequest)
-            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Get, cancellationToken).NoSync();
+            await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Get, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.GetAsync(options.Uri, cancellationToken).NoSync();
 
@@ -146,18 +148,16 @@ public class ApiClient : IApiClient
     public ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = true};
-
         return Put(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken)
     {
+        var httpContent = options.Object.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
         if (options.LogRequest)
-            await LogRequest($"{client.BaseAddress}{options.Uri}", options.Object.ToHttpContent(), HttpMethod.Put, cancellationToken).NoSync();
-
-        var httpContent = options.Object.ToHttpContent();
+            await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), httpContent, HttpMethod.Put, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.PutAsync(options.Uri, httpContent, cancellationToken).NoSync();
 
@@ -170,16 +170,15 @@ public class ApiClient : IApiClient
     public ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions {Uri = uri, LogRequest = true, LogResponse = true};
-
         return Delete(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken)
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
         if (options.LogRequest)
-            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Delete, cancellationToken).NoSync();
+            await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Delete, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.DeleteAsync(options.Uri, cancellationToken).NoSync();
 
@@ -193,37 +192,35 @@ public class ApiClient : IApiClient
     {
         var content = new MultipartFormDataContent
         {
-            {new StreamContent(options.Stream) {Headers = {ContentType = new MediaTypeHeaderValue("application/octet-stream")}}, "file", options.FileName}
+            {
+                new StreamContent(options.Stream) {Headers = {ContentType = new MediaTypeHeaderValue("application/octet-stream")}},
+                "file", options.FileName
+            }
         };
 
         if (options.Object != null)
         {
             string? json = JsonUtil.Serialize(options.Object);
-            var jsonContent = new StringContent(json!, Encoding.UTF8, "application/json");
+            var jsonContent = new StringContent(json!, Utf8Encoding);
+            jsonContent.Headers.ContentType = ApplicationJsonMediaType;
             content.Add(jsonContent, "json");
         }
 
         HttpClient client = await GetClient(cancellationToken: cancellationToken).NoSync();
 
         if (options.LogRequest)
-            await LogRequest($"{client.BaseAddress}{options.Uri}", null, HttpMethod.Post, cancellationToken).NoSync();
+            await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Post, cancellationToken).NoSync();
 
         return await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
     }
 
-    private ValueTask LogRequest(string requestUri, HttpContent? httpContent = null, HttpMethod? httpMethod = null, CancellationToken cancellationToken = default)
+    private ValueTask LogRequest(string requestUri, HttpContent? httpContent, HttpMethod? httpMethod, CancellationToken cancellationToken)
     {
-        if (_requestResponseLogging)
-            return _logJsonInterop.LogRequest(requestUri, httpContent, httpMethod, cancellationToken);
-
-        return ValueTask.CompletedTask;
+        return _requestResponseLogging ? _logJsonInterop.LogRequest(requestUri, httpContent, httpMethod, cancellationToken) : ValueTask.CompletedTask;
     }
 
-    private ValueTask LogResponse(HttpResponseMessage response, CancellationToken cancellationToken = default)
+    private ValueTask LogResponse(HttpResponseMessage response, CancellationToken cancellationToken)
     {
-        if (_requestResponseLogging)
-            return _logJsonInterop.LogResponse(response, cancellationToken);
-
-        return ValueTask.CompletedTask;
+        return _requestResponseLogging ? _logJsonInterop.LogResponse(response, cancellationToken) : ValueTask.CompletedTask;
     }
 }
