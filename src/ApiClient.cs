@@ -102,7 +102,7 @@ public class ApiClient : IApiClient
         return Post(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken)
+    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
     {
         var httpContent = options.Object?.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
@@ -130,7 +130,7 @@ public class ApiClient : IApiClient
         return Get(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken)
+    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
@@ -151,7 +151,7 @@ public class ApiClient : IApiClient
         return Put(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken)
+    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
     {
         var httpContent = options.Object.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
@@ -173,7 +173,7 @@ public class ApiClient : IApiClient
         return Delete(options, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken)
+    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
