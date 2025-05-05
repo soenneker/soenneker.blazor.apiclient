@@ -4,10 +4,7 @@
 
 If you discover a security vulnerability, **do not create a public GitHub issue.**
 
-Instead, report it privately by:
-
-- Emailing: **[security@soenneker.com](mailto:security@soenneker.com)**
-- Or using GitHub’s [private vulnerability reporting tool](https://github.com/soenneker/soenneker.blazor.apiclient/security/advisories/new)
+Instead, report it privately by using GitHub’s [private vulnerability reporting tool](https://github.com/soenneker/soenneker.blazor.apiclient/security/advisories/new)
 
 When reporting, include as much detail as possible to help us triage effectively:
 - A description of the vulnerability and its context
