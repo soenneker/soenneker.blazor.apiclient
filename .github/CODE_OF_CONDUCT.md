@@ -1,4 +1,4 @@
-# Code of Conduct
+﻿# Code of Conduct
 
 We are committed to creating a respectful, inclusive, and harassment-free environment for everyone.
 

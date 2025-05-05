@@ -1,10 +1,10 @@
-# Security Policy
+﻿# Security Policy
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, **do not create a public GitHub issue.**
+If you discover a security vulnerability, **do not create a public GitHub issue or discussion.**
 
-Instead, report it privately by using GitHub’s [private vulnerability reporting tool](https://github.com/soenneker/soenneker.blazor.apiclient/security/advisories/new)
+Instead, report it privately using this repository�s [GitHub private vulnerability reporting tool](https://github.com/soenneker/soenneker.blazor.apiclient/security/advisories/new).
 
 When reporting, include as much detail as possible to help us triage effectively:
 - A description of the vulnerability and its context
@@ -12,7 +12,7 @@ When reporting, include as much detail as possible to help us triage effectively
 - Relevant logs, configs, or code snippets
 - Your assessment of potential impact or severity
 
-We aim to respond within **2 business days**, and will work with you to assess and resolve the issue promptly. If a fix requires more time, we’ll provide regular status updates until it’s resolved.
+We aim to respond within **2 business days**, and will work with you to assess and resolve the issue promptly. If a fix requires more time, we�ll provide regular status updates until it�s resolved.
 
 ## Disclosure Policy
 
@@ -21,7 +21,7 @@ Once a vulnerability is confirmed and fixed:
 - You will be credited as the reporter (unless you request anonymity)
 - A patch release and changelog update will follow
 
-We follow [Coordinated Vulnerability Disclosure](https://vuls.cert.org/confluence/display/CVD) best practices—working privately with reporters to verify, fix, and only publicly disclose security issues once a safe resolution is in place.
+We follow [Coordinated Vulnerability Disclosure](https://vuls.cert.org/confluence/display/CVD) best practices; working privately with reporters to verify, fix, and only publicly disclose security issues once a safe resolution is in place.
 
 ## Security Best Practices
 

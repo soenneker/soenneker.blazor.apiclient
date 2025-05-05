@@ -1,4 +1,4 @@
-# Contributing to Soenneker.Blazor.ApiClient
+﻿# Contributing to Soenneker.Blazor.ApiClient
 
 We're excited that you're interested in contributing!
 
