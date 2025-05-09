@@ -1,17 +1,14 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
-using Microsoft.Net.Http.Headers;
 using Soenneker.Blazor.ApiClient.Abstract;
 using Soenneker.Blazor.ApiClient.Dtos;
 using Soenneker.Blazor.LogJson.Abstract;
 using Soenneker.Blazor.Utils.Session.Abstract;
-using Soenneker.Extensions.DateTimeOffset;
 using Soenneker.Extensions.Object;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.HttpClientCache.Abstract;
-using Soenneker.Utils.HttpClientCache.Dtos;
 using Soenneker.Utils.Json;
 using System;
 using System.Net.Http;
@@ -19,6 +16,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Soenneker.Dtos.HttpClientOptions;
 using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
 
 namespace Soenneker.Blazor.ApiClient;
