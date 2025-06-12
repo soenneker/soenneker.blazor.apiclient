@@ -35,8 +35,8 @@ public sealed class ApiClient : IApiClient
     private string? _baseAddress;
     private bool _requestResponseLogging;
 
-    private static readonly Encoding Utf8Encoding = new UTF8Encoding(false);
-    private static readonly string AuthScheme = "Bearer";
+    private static readonly Encoding _utf8Encoding = new UTF8Encoding(false);
+    private const string _authScheme = "Bearer";
     private static readonly MediaTypeHeaderValue _applicationJsonMediaType = new("application/json");
 
     private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
@@ -94,7 +94,8 @@ public sealed class ApiClient : IApiClient
         return token.Value;
     }
 
-    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
+        CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse, AllowAnonymous = allowAnonymous};
         return Post(options, cancellationToken);
@@ -119,7 +120,7 @@ public sealed class ApiClient : IApiClient
     private async ValueTask ModifyClient(HttpClient httpClient)
     {
         string accessToken = await GetAccessToken().NoSync();
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(AuthScheme, accessToken);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(_authScheme, accessToken);
     }
 
     public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
@@ -199,7 +200,7 @@ public sealed class ApiClient : IApiClient
         if (options.Object != null)
         {
             string? json = JsonUtil.Serialize(options.Object);
-            var jsonContent = new StringContent(json!, Utf8Encoding);
+            var jsonContent = new StringContent(json!, _utf8Encoding);
             jsonContent.Headers.ContentType = _applicationJsonMediaType;
             content.Add(jsonContent, "json");
         }
