@@ -17,10 +17,7 @@ public static class ApiClientRegistrar
     /// </summary>
     public static IServiceCollection AddApiClientAsScoped(this IServiceCollection services)
     {
-        services.AddLogJsonInteropAsScoped()
-                .AddSessionUtilAsScoped()
-                .AddHttpClientCacheAsSingleton()
-                .TryAddScoped<IApiClient, ApiClient>();
+        services.AddLogJsonInteropAsScoped().AddSessionUtilAsScoped().AddHttpClientCacheAsSingleton().TryAddScoped<IApiClient, ApiClient>();
 
         return services;
     }

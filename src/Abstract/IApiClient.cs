@@ -1,83 +1,118 @@
+using Soenneker.Blazor.ApiClient.Dtos;
+using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Soenneker.Blazor.ApiClient.Dtos;
 
 namespace Soenneker.Blazor.ApiClient.Abstract;
 
 /// <summary>
-/// A lightweight and efficient API client wrapper for Blazor applications. Simplifies HTTP communication with support for asynchronous calls, cancellation tokens, and JSON serialization.
+/// Defines methods for configuring and interacting with the API,
+/// including HTTP operations, authentication, and optional request/response logging.
 /// </summary>
 public interface IApiClient
 {
     /// <summary>
-    /// Initializes the API client with a base URI and an optional flag to enable logging of request and response details.
+    /// Initializes the client with the specified base address and logging setting.
+    /// Must be called before performing any HTTP operations.
     /// </summary>
-    /// <param name="baseAddress">The base URI for the API.</param>
-    /// <param name="requestResponseLogging">A flag to indicate whether request and response logging should be enabled.</param>
+    /// <param name="baseAddress">The base URI of the API endpoints.</param>
+    /// <param name="requestResponseLogging">Whether to enable detailed request and response logging.</param>
     void Initialize(string baseAddress, bool requestResponseLogging);
 
     /// <summary>
-    /// Asynchronously retrieves the current access token for the API client.
+    /// Retrieves or creates an <see cref="HttpClient"/> instance configured for authenticated or anonymous requests.
     /// </summary>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the access token as a string.</returns>
-    ValueTask<string> GetAccessToken();
-
-    /// <summary>
-    /// Asynchronously retrieves a configured <see cref="HttpClient"/> instance with an access token attached.
-    /// Uses double-check locking to ensure the access token is cached appropriately. <para/>
-    /// The returned <see cref="HttpClient"/> exists for the duration of the user's session.
-    /// </summary>
-    /// <param name="allowAnonymous">An optional flag to allow anonymous requests. Defaults to false.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the configured <see cref="HttpClient"/>.</returns>
+    /// <param name="allowAnonymous">If true, allows anonymous requests (no bearer token); otherwise requires authentication.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the configured <see cref="HttpClient"/>.</returns>
     ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Asynchronously sends a POST request to the specified URI with an optional object payload.
+    /// Requests and returns a fresh access token using the configured authentication provider.
     /// </summary>
-    /// <param name="options">Options for configuring the POST request.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
-    ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default);
-
-    ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default);
+    /// <returns>A task that returns the access token string.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the user is not authenticated or if the token could not be acquired.
+    /// </exception>
+    ValueTask<string> GetAccessToken();
 
     /// <summary>
-    /// Asynchronously sends a GET request to the specified URI.
+    /// Sends a GET request to the specified URI.
     /// </summary>
-    /// <param name="options">Options for configuring the GET request.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
-    ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default);
-
+    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Asynchronously sends a PUT request to the specified URI with an object payload.
+    /// Sends a GET request using the specified <see cref="RequestOptions"/>.
     /// </summary>
-    /// <param name="options">Options for configuring the PUT request.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
-    ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default);
-
-    ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default);
+    /// <param name="options">Options including URI, logging flags, and anonymity.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Asynchronously sends a DELETE request to the specified URI.
+    /// Sends a POST request with a JSON-serializable payload.
     /// </summary>
-    /// <param name="options">Options for configuring the DELETE request.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
-    ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default);
+    /// <param name="uri">The relative URI of the endpoint.</param>
+    /// <param name="obj">The object to serialize as JSON in the request body.</param>
+    /// <param name="logResponse">Whether to log the response.</param>
+    /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
+        CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Sends a POST request using the specified <see cref="RequestOptions"/>.
+    /// </summary>
+    /// <param name="options">Options including URI, payload, and logging flags.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a PUT request with a JSON-serializable payload.
+    /// </summary>
+    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="obj">The object to serialize as JSON in the request body.</param>
+    /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Put(string uri, object obj, bool? allowAnonymous = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a PUT request using the specified <see cref="RequestOptions"/>.
+    /// </summary>
+    /// <param name="options">Options including URI, payload, and logging flags.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a DELETE request to the specified URI.
+    /// </summary>
+    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Asynchronously uploads a file stream to the specified URI, with an optional object payload.
+    /// Sends a DELETE request using the specified <see cref="RequestOptions"/>.
     /// </summary>
-    /// <param name="options">Options for configuring the file upload request.</param>
-    /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe while waiting for the task to complete.</param>
-    /// <returns>A <see cref="ValueTask{TResult}"/> representing the asynchronous operation, which contains the <see cref="HttpResponseMessage"/>.</returns>
+    /// <param name="options">Options including URI and logging flags.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
+    ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Uploads a file stream with optional JSON metadata.
+    /// </summary>
+    /// <param name="options">Options including target URI, file stream, filename, and metadata object.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default);
 }

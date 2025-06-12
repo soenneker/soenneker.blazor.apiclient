@@ -23,10 +23,10 @@ public record RequestOptions
     /// <summary>
     /// Gets or sets a value indicating whether the response should be logged. Defaults to false.
     /// </summary>
-    public bool LogResponse { get; set; } = false;
+    public bool? LogResponse { get; set; } = false;
 
     /// <summary>
     /// Gets or sets a value indicating whether the request should be logged. Defaults to false.
     /// </summary>
-    public bool LogRequest { get; set; } = false;
+    public bool? LogRequest { get; set; } = false;
 }

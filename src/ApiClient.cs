@@ -22,7 +22,7 @@ using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
 namespace Soenneker.Blazor.ApiClient;
 
 ///<inheritdoc cref="IApiClient"/>
-public class ApiClient : IApiClient
+public sealed class ApiClient : IApiClient
 {
     private readonly IAccessTokenProvider _accessTokenProvider;
     private readonly ILogJsonInterop _logJsonInterop;
@@ -37,7 +37,7 @@ public class ApiClient : IApiClient
 
     private static readonly Encoding Utf8Encoding = new UTF8Encoding(false);
     private static readonly string AuthScheme = "Bearer";
-    private static readonly MediaTypeHeaderValue ApplicationJsonMediaType = new("application/json");
+    private static readonly MediaTypeHeaderValue _applicationJsonMediaType = new("application/json");
 
     private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
     private const string _authenticated = $"{nameof(ApiClient)}-authenticated";
@@ -94,9 +94,9 @@ public class ApiClient : IApiClient
         return token.Value;
     }
 
-    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse};
+        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse, AllowAnonymous = allowAnonymous};
         return Post(options, cancellationToken);
     }
 
@@ -143,9 +143,9 @@ public class ApiClient : IApiClient
         return response;
     }
 
-    public ValueTask<HttpResponseMessage> Put(string uri, object obj, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Put(string uri, object obj, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = true};
+        var options = new RequestOptions {Uri = uri, Object = obj, LogRequest = true, LogResponse = true, AllowAnonymous = allowAnonymous};
         return Put(options, cancellationToken);
     }
 
@@ -200,7 +200,7 @@ public class ApiClient : IApiClient
         {
             string? json = JsonUtil.Serialize(options.Object);
             var jsonContent = new StringContent(json!, Utf8Encoding);
-            jsonContent.Headers.ContentType = ApplicationJsonMediaType;
+            jsonContent.Headers.ContentType = _applicationJsonMediaType;
             content.Add(jsonContent, "json");
         }
 
