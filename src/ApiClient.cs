@@ -105,12 +105,12 @@ public sealed class ApiClient : IApiClient
         var httpContent = options.Object?.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        if (options.LogRequest)
+        if (options.LogRequest.GetValueOrDefault())
             await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), httpContent, HttpMethod.Post, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.PostAsync(options.Uri, httpContent, cancellationToken).NoSync();
 
-        if (options.LogResponse)
+        if (options.LogResponse.GetValueOrDefault())
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
@@ -132,12 +132,12 @@ public sealed class ApiClient : IApiClient
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        if (options.LogRequest)
+        if (options.LogRequest.GetValueOrDefault())
             await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Get, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.GetAsync(options.Uri, cancellationToken).NoSync();
 
-        if (options.LogResponse)
+        if (options.LogResponse.GetValueOrDefault())
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
@@ -154,12 +154,12 @@ public sealed class ApiClient : IApiClient
         var httpContent = options.Object.ToHttpContent();
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        if (options.LogRequest)
+        if (options.LogRequest.GetValueOrDefault())
             await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), httpContent, HttpMethod.Put, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.PutAsync(options.Uri, httpContent, cancellationToken).NoSync();
 
-        if (options.LogResponse)
+        if (options.LogResponse.GetValueOrDefault())
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
@@ -175,12 +175,12 @@ public sealed class ApiClient : IApiClient
     {
         HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
 
-        if (options.LogRequest)
+        if (options.LogRequest.GetValueOrDefault())
             await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Delete, cancellationToken).NoSync();
 
         HttpResponseMessage response = await client.DeleteAsync(options.Uri, cancellationToken).NoSync();
 
-        if (options.LogResponse)
+        if (options.LogResponse.GetValueOrDefault())
             await LogResponse(response, cancellationToken).NoSync();
 
         return response;
@@ -206,7 +206,7 @@ public sealed class ApiClient : IApiClient
 
         HttpClient client = await GetClient(cancellationToken: cancellationToken).NoSync();
 
-        if (options.LogRequest)
+        if (options.LogRequest.GetValueOrDefault())
             await LogRequest(new Uri(client.BaseAddress!, options.Uri).ToString(), null, HttpMethod.Post, cancellationToken).NoSync();
 
         return await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
