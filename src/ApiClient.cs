@@ -99,7 +99,7 @@ public sealed class ApiClient : IApiClient
         await _sessionUtil.ClearState().NoSync();
         _navigationManager.NavigateToLogin(result.InteractiveRequestUrl, result.InteractionOptions);
 
-        return "";
+        throw new AccessTokenNotAvailableException(_navigationManager, result, null);
     }
 
     public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
