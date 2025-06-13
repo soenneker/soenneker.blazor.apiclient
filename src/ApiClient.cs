@@ -17,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Dtos.HttpClientOptions;
 using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
+using Microsoft.AspNetCore.Components;
 
 namespace Soenneker.Blazor.ApiClient;
 
@@ -26,6 +27,7 @@ public sealed class ApiClient : IApiClient
     private readonly IAccessTokenProvider _accessTokenProvider;
     private readonly ILogJsonInterop _logJsonInterop;
     private readonly IHttpClientCache _httpClientCache;
+    private readonly NavigationManager _navigationManager;
     private readonly ISessionUtil _sessionUtil;
 
     private DateTime? _jwtExpiration;
@@ -42,12 +44,14 @@ public sealed class ApiClient : IApiClient
 
     private static readonly TimeSpan _refreshThreshold = TimeSpan.FromMinutes(1);
 
-    public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
+    public ApiClient(IAccessTokenProvider accessTokenProvider, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache,
+        NavigationManager navigationManager)
     {
         _accessTokenProvider = accessTokenProvider;
         _sessionUtil = sessionUtil;
         _logJsonInterop = logJsonInterop;
         _httpClientCache = httpClientCache;
+        _navigationManager = navigationManager;
     }
 
     public void Initialize(string baseAddress, bool requestResponseLogging)
@@ -81,30 +85,21 @@ public sealed class ApiClient : IApiClient
             _jwtExpiration = null;
         }
 
-        try
-        {
-            // 2) normal MSAL pipeline
-            AccessTokenResult result = await _accessTokenProvider.RequestAccessToken();
+        // 2) normal MSAL pipeline
+        AccessTokenResult result = await _accessTokenProvider.RequestAccessToken().NoSync();
 
-            if (result.TryGetToken(out AccessToken? token))
-            {
-                // 3) update expiration & background watcher
-                _jwtExpiration = token.Expires.UtcDateTime;
-                await _sessionUtil.UpdateWithAccessToken(_jwtExpiration.Value).NoSync();
-                return token.Value;
-            }
-
-            // silent‐acquire returned no token
-            await _sessionUtil.ClearStateAndRedirect(false).NoSync();
-            throw new InvalidOperationException("Silent token acquisition failed.");
-        }
-        catch (AccessTokenNotAvailableException ex)
+        if (result.TryGetToken(out AccessToken? token))
         {
-            // 4) interactive fallback
-            await _sessionUtil.ClearState().NoSync();
-            ex.Redirect();
-            throw;
+            // 3) update expiration & background watcher
+            _jwtExpiration = token.Expires.UtcDateTime;
+            await _sessionUtil.UpdateWithAccessToken(_jwtExpiration.Value).NoSync();
+            return token.Value;
         }
+
+        await _sessionUtil.ClearState().NoSync();
+        _navigationManager.NavigateToLogin(result.InteractiveRequestUrl, result.InteractionOptions);
+
+        return "";
     }
 
     public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
