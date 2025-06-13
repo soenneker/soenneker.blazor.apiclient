@@ -88,6 +88,12 @@ public sealed class ApiClient : IApiClient
         // 2) normal MSAL pipeline
         AccessTokenResult result = await _accessTokenProvider.RequestAccessToken().NoSync();
 
+        if (result.Status == AccessTokenResultStatus.RequiresRedirect)
+        {
+            // bail out immediately—there’s already an interactive flow in progress
+            throw new AccessTokenNotAvailableException(_navigationManager, result, null);
+        }
+
         if (result.TryGetToken(out AccessToken? token))
         {
             // 3) update expiration & background watcher
