@@ -1,4 +1,4 @@
-﻿namespace Soenneker.Blazor.ApiClient.Dtos;
+namespace Soenneker.Blazor.ApiClient.Dtos;
 
 /// <summary>
 /// Represents the options for making an API request, including the URI, request payload, and logging settings.
