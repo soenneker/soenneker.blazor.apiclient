@@ -1,4 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8"?><Project Sdk="Microsoft.NET.Sdk">
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFrameworks>net9.0</TargetFrameworks>
@@ -32,16 +34,10 @@
         <LangVersion>latest</LangVersion>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild></PropertyGroup>
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="NewFolder\**" />
-      <EmbeddedResource Remove="NewFolder\**" />
-      <None Remove="NewFolder\**" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        
         <None Include="..\README.md" Pack="true" PackagePath="\" />
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
@@ -49,10 +45,9 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Blazor.LogJson" Version="3.0.1668" />
-        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="3.0.2316" />
+        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="3.0.2318" />
         <PackageReference Include="Soenneker.Extensions.DateTimeOffset" Version="3.0.447" />
         <PackageReference Include="Soenneker.Extensions.Object" Version="3.0.3888" />
-
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="3.0.1741" />
     </ItemGroup>
 </Project>

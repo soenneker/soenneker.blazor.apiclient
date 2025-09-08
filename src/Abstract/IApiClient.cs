@@ -35,7 +35,7 @@ public interface IApiClient
     /// <exception cref="InvalidOperationException">
     /// Thrown if the user is not authenticated or if the token could not be acquired.
     /// </exception>
-    ValueTask<string> GetAccessToken();
+    ValueTask<string> GetAccessToken(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Sends a GET request to the specified URI.
