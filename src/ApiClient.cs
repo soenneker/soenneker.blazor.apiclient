@@ -53,16 +53,19 @@ public sealed class ApiClient : IApiClient
     {
         string clientName = allowAnonymous.GetValueOrDefault() ? _anonymous : _authenticated;
 
-        var httpClientOptions = new HttpClientOptions();
+        return _httpClientCache.Get(clientName, () =>
+        {
+            var httpClientOptions = new HttpClientOptions();
 
-        if (!_baseAddress.IsNullOrEmpty())
-            httpClientOptions.BaseAddress = _baseAddress;
+            if (!_baseAddress.IsNullOrEmpty())
+                httpClientOptions.BaseAddress = _baseAddress;
 
-        // Keep this for initial header on first create; we still ensure freshness per-request.
-        if (!allowAnonymous.GetValueOrDefault())
-            httpClientOptions.ModifyClient = ModifyClient;
+            // Keep this for initial header on first create; we still ensure freshness per-request.
+            if (!allowAnonymous.GetValueOrDefault())
+                httpClientOptions.ModifyClient = ModifyClient;
 
-        return _httpClientCache.Get(clientName, httpClientOptions, cancellationToken);
+            return httpClientOptions;
+        }, cancellationToken);
     }
 
     public ValueTask<string> GetAccessToken(CancellationToken cancellationToken = default)
@@ -70,7 +73,8 @@ public sealed class ApiClient : IApiClient
         return _sessionUtil.GetAccessToken(cancellationToken);
     }
 
-    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
+        CancellationToken cancellationToken = default)
     {
         var options = new RequestOptions { Uri = uri, Object = obj, LogRequest = true, LogResponse = logResponse, AllowAnonymous = allowAnonymous };
         return Post(options, cancellationToken);
@@ -78,10 +82,12 @@ public sealed class ApiClient : IApiClient
 
     public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken)
+            .NoSync();
 
         if (!options.AllowAnonymous.GetValueOrDefault())
-            await EnsureAuthHeader(client, cancellationToken).NoSync();
+            await EnsureAuthHeader(client, cancellationToken)
+                .NoSync();
 
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
@@ -92,26 +98,31 @@ public sealed class ApiClient : IApiClient
         {
             string requestUri = client.BaseAddress is not null ? new Uri(client.BaseAddress, options.Uri).ToString() : options.Uri;
 
-            await LogRequest(requestUri, content, HttpMethod.Post, cancellationToken).NoSync();
+            await LogRequest(requestUri, content, HttpMethod.Post, cancellationToken)
+                .NoSync();
         }
 
-        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken)
+                                                   .NoSync();
 
         if (logRes)
-            await LogResponse(response, cancellationToken).NoSync();
+            await LogResponse(response, cancellationToken)
+                .NoSync();
 
         return response;
     }
 
     private async ValueTask ModifyClient(HttpClient httpClient)
     {
-        string accessToken = await GetAccessToken().NoSync();
+        string accessToken = await GetAccessToken()
+            .NoSync();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(_authScheme, accessToken);
     }
 
     private async ValueTask EnsureAuthHeader(HttpClient client, CancellationToken cancellationToken)
     {
-        string accessToken = await GetAccessToken(cancellationToken).NoSync();
+        string accessToken = await GetAccessToken(cancellationToken)
+            .NoSync();
 
         AuthenticationHeaderValue? current = client.DefaultRequestHeaders.Authorization;
         // Compare parameter; avoid header churn
@@ -127,10 +138,12 @@ public sealed class ApiClient : IApiClient
 
     public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken)
+            .NoSync();
 
         if (!options.AllowAnonymous.GetValueOrDefault())
-            await EnsureAuthHeader(client, cancellationToken).NoSync();
+            await EnsureAuthHeader(client, cancellationToken)
+                .NoSync();
 
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
@@ -144,10 +157,12 @@ public sealed class ApiClient : IApiClient
 
         HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
 
-        HttpResponseMessage response = await client.GetAsync(options.Uri, completion, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.GetAsync(options.Uri, completion, cancellationToken)
+                                                   .NoSync();
 
         if (logRes)
-            await LogResponse(response, cancellationToken).NoSync();
+            await LogResponse(response, cancellationToken)
+                .NoSync();
 
         return response;
     }
@@ -160,10 +175,12 @@ public sealed class ApiClient : IApiClient
 
     public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken)
+            .NoSync();
 
         if (!options.AllowAnonymous.GetValueOrDefault())
-            await EnsureAuthHeader(client, cancellationToken).NoSync();
+            await EnsureAuthHeader(client, cancellationToken)
+                .NoSync();
 
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
@@ -174,13 +191,16 @@ public sealed class ApiClient : IApiClient
         {
             string requestUri = client.BaseAddress is not null ? new Uri(client.BaseAddress, options.Uri).ToString() : options.Uri;
 
-            await LogRequest(requestUri, content, HttpMethod.Put, cancellationToken).NoSync();
+            await LogRequest(requestUri, content, HttpMethod.Put, cancellationToken)
+                .NoSync();
         }
 
-        HttpResponseMessage response = await client.PutAsync(options.Uri, content, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.PutAsync(options.Uri, content, cancellationToken)
+                                                   .NoSync();
 
         if (logRes)
-            await LogResponse(response, cancellationToken).NoSync();
+            await LogResponse(response, cancellationToken)
+                .NoSync();
 
         return response;
     }
@@ -193,10 +213,12 @@ public sealed class ApiClient : IApiClient
 
     public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken).NoSync();
+        HttpClient client = await GetClient(options.AllowAnonymous, cancellationToken)
+            .NoSync();
 
         if (!options.AllowAnonymous.GetValueOrDefault())
-            await EnsureAuthHeader(client, cancellationToken).NoSync();
+            await EnsureAuthHeader(client, cancellationToken)
+                .NoSync();
 
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
@@ -205,22 +227,27 @@ public sealed class ApiClient : IApiClient
         {
             string requestUri = client.BaseAddress is not null ? new Uri(client.BaseAddress, options.Uri).ToString() : options.Uri;
 
-            await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken).NoSync();
+            await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken)
+                .NoSync();
         }
 
-        HttpResponseMessage response = await client.DeleteAsync(options.Uri, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.DeleteAsync(options.Uri, cancellationToken)
+                                                   .NoSync();
 
         if (logRes)
-            await LogResponse(response, cancellationToken).NoSync();
+            await LogResponse(response, cancellationToken)
+                .NoSync();
 
         return response;
     }
 
     public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default)
     {
-        HttpClient client = await GetClient(cancellationToken: cancellationToken).NoSync();
+        HttpClient client = await GetClient(cancellationToken: cancellationToken)
+            .NoSync();
 
-        await EnsureAuthHeader(client, cancellationToken).NoSync();
+        await EnsureAuthHeader(client, cancellationToken)
+            .NoSync();
 
         bool logReq = options.LogRequest.GetValueOrDefault();
 
@@ -243,10 +270,12 @@ public sealed class ApiClient : IApiClient
         {
             string requestUri = client.BaseAddress is not null ? new Uri(client.BaseAddress, options.Uri).ToString() : options.Uri;
 
-            await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken).NoSync();
+            await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken)
+                .NoSync();
         }
 
-        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken).NoSync();
+        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken)
+                                                   .NoSync();
         return response;
     }
 
