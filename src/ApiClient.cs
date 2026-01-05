@@ -27,7 +27,7 @@ public sealed class ApiClient : IApiClient
     private readonly ISessionUtil _sessionUtil;
 
     private string? _baseAddressTrimmed; // cached for log URI building
-    private Uri? _baseUri;
+    private Uri _baseUri;
     private bool _requestResponseLogging;
 
     // Header cache (NOT token cache for retrieval; SessionUtil already caches retrieval)
@@ -52,7 +52,7 @@ public sealed class ApiClient : IApiClient
     public void Initialize(string baseAddress, bool requestResponseLogging)
     {
         _baseAddressTrimmed = baseAddress.HasContent() ? baseAddress.TrimEnd('/') : null;
-        _baseUri = baseAddress.HasContent() ? new Uri(baseAddress, UriKind.Absolute) : null;
+        _baseUri = baseAddress.HasContent() ? new Uri(baseAddress, UriKind.Absolute) : throw new Exception("BaseAddress must be set");
         _requestResponseLogging = requestResponseLogging;
     }
 
@@ -63,10 +63,10 @@ public sealed class ApiClient : IApiClient
         {
             return _httpClientCache.Get(_anonymous, _baseUri, static baseUri =>
             {
-                var httpClientOptions = new HttpClientOptions();
-
-                if (baseUri is not null)
-                    httpClientOptions.BaseAddressUri = baseUri;
+                var httpClientOptions = new HttpClientOptions
+                {
+                    BaseAddress = baseUri
+                };
 
                 return httpClientOptions;
             }, cancellationToken);
@@ -76,14 +76,13 @@ public sealed class ApiClient : IApiClient
         Func<HttpClient, ValueTask> modifyClient = ModifyClient;
         return _httpClientCache.Get(_authenticated, (baseUri: _baseUri, modifyClient: modifyClient), static state =>
         {
-            var httpClientOptions = new HttpClientOptions();
-
-            if (state.baseUri is not null)
-                httpClientOptions.BaseAddressUri = state.baseUri;
-
-            // Only sets an initial header when the HttpClient is first created.
-            // We still ensure freshness on each request.
-            httpClientOptions.ModifyClient = state.modifyClient;
+            var httpClientOptions = new HttpClientOptions
+            {
+                BaseAddress = state.baseUri,
+                // Only sets an initial header when the HttpClient is first created.
+                // We still ensure freshness on each request.
+                ModifyClient = state.modifyClient
+            };
 
             return httpClientOptions;
         }, cancellationToken);
