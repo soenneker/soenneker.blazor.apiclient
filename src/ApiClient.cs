@@ -58,32 +58,35 @@ public sealed class ApiClient : IApiClient
 
     public ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        // No closure: choose between two method-group factories
-        return allowAnonymous.GetValueOrDefault()
-            ? _httpClientCache.Get(_anonymous, CreateAnonymousClientOptions, cancellationToken)
-            : _httpClientCache.Get(_authenticated, CreateAuthenticatedClientOptions, cancellationToken);
-    }
+        // No closure: state passed explicitly + static lambda
+        if (allowAnonymous.GetValueOrDefault())
+        {
+            return _httpClientCache.Get(_anonymous, _baseUri, static baseUri =>
+            {
+                var httpClientOptions = new HttpClientOptions();
 
-    private HttpClientOptions CreateAnonymousClientOptions()
-    {
-        var httpClientOptions = new HttpClientOptions();
+                if (baseUri is not null)
+                    httpClientOptions.BaseAddressUri = baseUri;
 
-        Uri? baseUri = _baseUri;
-        if (baseUri is not null)
-            httpClientOptions.BaseAddressUri = baseUri;
+                return httpClientOptions;
+            }, cancellationToken);
+        }
 
-        return httpClientOptions;
-    }
+        // For authenticated, we need ModifyClient which captures instance state, but we avoid capturing _baseUri
+        Func<HttpClient, ValueTask> modifyClient = ModifyClient;
+        return _httpClientCache.Get(_authenticated, (baseUri: _baseUri, modifyClient: modifyClient), static state =>
+        {
+            var httpClientOptions = new HttpClientOptions();
 
-    private HttpClientOptions CreateAuthenticatedClientOptions()
-    {
-        HttpClientOptions httpClientOptions = CreateAnonymousClientOptions();
+            if (state.baseUri is not null)
+                httpClientOptions.BaseAddressUri = state.baseUri;
 
-        // Only sets an initial header when the HttpClient is first created.
-        // We still ensure freshness on each request.
-        httpClientOptions.ModifyClient = ModifyClient;
+            // Only sets an initial header when the HttpClient is first created.
+            // We still ensure freshness on each request.
+            httpClientOptions.ModifyClient = state.modifyClient;
 
-        return httpClientOptions;
+            return httpClientOptions;
+        }, cancellationToken);
     }
 
     public ValueTask<string> GetAccessToken(CancellationToken cancellationToken = default) =>
