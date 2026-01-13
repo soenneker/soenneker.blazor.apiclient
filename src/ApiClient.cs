@@ -70,16 +70,15 @@ public sealed class ApiClient : IApiClient
             }, cancellationToken);
         }
 
-        // For authenticated, we need ModifyClient which captures instance state, but we avoid capturing _baseUri
-        Func<HttpClient, ValueTask> modifyClient = ModifyClient;
-        return _httpClientCache.Get(_authenticated, (baseUri: _baseUri, modifyClient: modifyClient), static state =>
+        // Important for Blazor WASM:
+        // Do NOT fetch/access tokens during HttpClient creation. The cache will await ModifyClient before returning the client,
+        // and token acquisition can require the auth/JS pipeline to be ready (or interactive), which would block GetClient().
+        // Instead, apply the Authorization header per-request via EnsureAuthHeader(...).
+        return _httpClientCache.Get(_authenticated, _baseUri, static baseUri =>
         {
             var httpClientOptions = new HttpClientOptions
             {
-                BaseAddress = state.baseUri,
-                // Only sets an initial header when the HttpClient is first created.
-                // We still ensure freshness on each request.
-                ModifyClient = state.modifyClient
+                BaseAddress = baseUri
             };
 
             return httpClientOptions;
@@ -293,21 +292,6 @@ public sealed class ApiClient : IApiClient
 
         HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken);
         return response;
-    }
-
-    private async ValueTask ModifyClient(HttpClient httpClient)
-    {
-        // Called only during HttpClient creation via cache.
-        // Still do the same "header cache" logic to avoid an extra header allocation if possible.
-        string accessToken = await _sessionUtil.GetAccessToken();
-
-        if (!string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
-        {
-            _cachedAccessToken = accessToken;
-            _cachedAuthHeader = new AuthenticationHeaderValue(_authScheme, accessToken);
-        }
-
-        httpClient.DefaultRequestHeaders.Authorization = _cachedAuthHeader;
     }
 
     private async ValueTask EnsureAuthHeader(HttpClient client, CancellationToken cancellationToken)
