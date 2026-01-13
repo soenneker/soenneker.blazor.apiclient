@@ -5,8 +5,6 @@ using Soenneker.Blazor.Utils.Session.Abstract;
 using Soenneker.Dtos.HttpClientOptions;
 using Soenneker.Extensions.Object;
 using Soenneker.Extensions.String;
-using Soenneker.Extensions.Task;
-using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.HttpClientCache.Abstract;
 using Soenneker.Utils.Json;
 using System;
@@ -112,20 +110,17 @@ public sealed class ApiClient : IApiClient
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
 
-        HttpClient client = await GetClient(anonymous, cancellationToken)
-            .NoSync();
+        HttpClient client = await GetClient(anonymous, cancellationToken);
 
         if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken)
-                .NoSync();
+            await EnsureAuthHeader(client, cancellationToken);
 
         using var content = options.Object?.ToHttpContent();
 
         if (logReq)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, content, HttpMethod.Post, cancellationToken)
-                .NoSync();
+            await LogRequest(requestUri, content, HttpMethod.Post, cancellationToken);
         }
 
         HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
@@ -133,12 +128,10 @@ public sealed class ApiClient : IApiClient
         using var request = new HttpRequestMessage(HttpMethod.Post, options.Uri);
         request.Content = content;
 
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken)
-                                                   .NoSync();
+        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
 
         if (logRes)
-            await LogResponse(response, cancellationToken)
-                .NoSync();
+            await LogResponse(response, cancellationToken);
 
         return response;
     }
@@ -162,28 +155,23 @@ public sealed class ApiClient : IApiClient
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
 
-        HttpClient client = await GetClient(anonymous, cancellationToken)
-            .NoSync();
+        HttpClient client = await GetClient(anonymous, cancellationToken);
 
         if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken)
-                .NoSync();
+            await EnsureAuthHeader(client, cancellationToken);
 
         if (logReq)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Get, cancellationToken)
-                .NoSync();
+            await LogRequest(requestUri, null, HttpMethod.Get, cancellationToken);
         }
 
         HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
 
-        HttpResponseMessage response = await client.GetAsync(options.Uri, completion, cancellationToken)
-                                                   .NoSync();
+        HttpResponseMessage response = await client.GetAsync(options.Uri, completion, cancellationToken);
 
         if (logRes)
-            await LogResponse(response, cancellationToken)
-                .NoSync();
+            await LogResponse(response, cancellationToken);
 
         return response;
     }
@@ -208,20 +196,17 @@ public sealed class ApiClient : IApiClient
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
 
-        HttpClient client = await GetClient(anonymous, cancellationToken)
-            .NoSync();
+        HttpClient client = await GetClient(anonymous, cancellationToken);
 
         if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken)
-                .NoSync();
+            await EnsureAuthHeader(client, cancellationToken);
 
         using var content = options.Object?.ToHttpContent();
 
         if (logReq)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, content, HttpMethod.Put, cancellationToken)
-                .NoSync();
+            await LogRequest(requestUri, content, HttpMethod.Put, cancellationToken);
         }
 
         HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
@@ -229,12 +214,10 @@ public sealed class ApiClient : IApiClient
         using var request = new HttpRequestMessage(HttpMethod.Put, options.Uri);
         request.Content = content;
 
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken)
-                                                   .NoSync();
+        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
 
         if (logRes)
-            await LogResponse(response, cancellationToken)
-                .NoSync();
+            await LogResponse(response, cancellationToken);
 
         return response;
     }
@@ -257,30 +240,25 @@ public sealed class ApiClient : IApiClient
         bool logReq = options.LogRequest.GetValueOrDefault();
         bool logRes = options.LogResponse.GetValueOrDefault();
 
-        HttpClient client = await GetClient(anonymous, cancellationToken)
-            .NoSync();
+        HttpClient client = await GetClient(anonymous, cancellationToken);
 
         if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken)
-                .NoSync();
+            await EnsureAuthHeader(client, cancellationToken);
 
         if (logReq)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken)
-                .NoSync();
+            await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken);
         }
 
         HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, options.Uri);
 
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken)
-                                                   .NoSync();
+        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
 
         if (logRes)
-            await LogResponse(response, cancellationToken)
-                .NoSync();
+            await LogResponse(response, cancellationToken);
 
         return response;
     }
@@ -289,11 +267,9 @@ public sealed class ApiClient : IApiClient
     {
         bool logReq = options.LogRequest.GetValueOrDefault();
 
-        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken)
-            .NoSync();
+        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken);
 
-        await EnsureAuthHeader(client, cancellationToken)
-            .NoSync();
+        await EnsureAuthHeader(client, cancellationToken);
 
         using var content = new MultipartFormDataContent();
 
@@ -312,12 +288,10 @@ public sealed class ApiClient : IApiClient
         if (logReq)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken)
-                .NoSync();
+            await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken);
         }
 
-        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken)
-                                                   .NoSync();
+        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken);
         return response;
     }
 
@@ -325,8 +299,7 @@ public sealed class ApiClient : IApiClient
     {
         // Called only during HttpClient creation via cache.
         // Still do the same "header cache" logic to avoid an extra header allocation if possible.
-        string accessToken = await _sessionUtil.GetAccessToken()
-                                               .NoSync();
+        string accessToken = await _sessionUtil.GetAccessToken();
 
         if (!string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
         {
@@ -339,8 +312,7 @@ public sealed class ApiClient : IApiClient
 
     private async ValueTask EnsureAuthHeader(HttpClient client, CancellationToken cancellationToken)
     {
-        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken)
-                                               .NoSync();
+        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken);
 
         if (string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
         {
