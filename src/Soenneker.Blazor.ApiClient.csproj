@@ -44,10 +44,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Blazor.LogJson" Version="4.0.1731" />
-        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="4.0.2414" />
+        <PackageReference Include="Soenneker.Blazor.LogJson" Version="4.0.1733" />
+        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="4.0.2419" />
         <PackageReference Include="Soenneker.Extensions.DateTimeOffset" Version="4.0.466" />
-        <PackageReference Include="Soenneker.Extensions.Object" Version="4.0.4003" />
-        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.1821" />
+        <PackageReference Include="Soenneker.Extensions.Object" Version="4.0.4009" />
+        <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.1824" />
     </ItemGroup>
 </Project>
