@@ -1,16 +1,15 @@
-using Soenneker.Tests.FixturedUnit;
-using Xunit;
+using Soenneker.Tests.HostedUnit;
 
 namespace Soenneker.Blazor.ApiClient.Tests;
 
-[Collection("Collection")]
-public class ApiClientTests : FixturedUnitTest
+[ClassDataSource<Host>(Shared = SharedType.PerTestSession)]
+public class ApiClientTests : HostedUnitTest
 {
-    public ApiClientTests(Fixture fixture, ITestOutputHelper output) : base(fixture, output)
+    public ApiClientTests(Host host) : base(host)
     {
     }
 
-    [Fact]
+    [Test]
     public void Default()
     {
 
