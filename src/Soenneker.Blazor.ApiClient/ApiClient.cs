@@ -13,7 +13,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
 
 namespace Soenneker.Blazor.ApiClient;
 
@@ -24,11 +23,11 @@ public sealed class ApiClient : IApiClient
     private readonly IHttpClientCache _httpClientCache;
     private readonly ISessionUtil _sessionUtil;
 
-    private string? _baseAddressTrimmed; // cached for log URI building
-    private Uri _baseUri;
+    private string? _baseAddressTrimmed;
+    private Uri _baseUri = null!;
     private bool _requestResponseLogging;
 
-    // Header cache (NOT token cache for retrieval; SessionUtil already caches retrieval)
+    // Header cache only. Token retrieval is still delegated to SessionUtil.
     private string? _cachedAccessToken;
     private AuthenticationHeaderValue? _cachedAuthHeader;
 
@@ -49,226 +48,97 @@ public sealed class ApiClient : IApiClient
 
     public void Initialize(string baseAddress, bool requestResponseLogging)
     {
-        _baseAddressTrimmed = baseAddress.HasContent() ? baseAddress.TrimEnd('/') : null;
-        _baseUri = baseAddress.HasContent() ? new Uri(baseAddress, UriKind.Absolute) : throw new Exception("BaseAddress must be set");
+        if (!baseAddress.HasContent())
+            throw new InvalidOperationException("BaseAddress must be set");
+
+        _baseAddressTrimmed = baseAddress.TrimEnd('/');
+        _baseUri = new Uri(baseAddress, UriKind.Absolute);
         _requestResponseLogging = requestResponseLogging;
     }
 
     public ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
-        // No closure: state passed explicitly + static lambda
         if (allowAnonymous.GetValueOrDefault())
         {
             return _httpClientCache.Get(_anonymous, _baseUri, static baseUri =>
             {
-                var httpClientOptions = new HttpClientOptions
+                return new HttpClientOptions
                 {
                     BaseAddress = baseUri
                 };
-
-                return httpClientOptions;
             }, cancellationToken);
         }
 
         // Important for Blazor WASM:
-        // Do NOT fetch/access tokens during HttpClient creation. The cache will await ModifyClient before returning the client,
-        // and token acquisition can require the auth/JS pipeline to be ready (or interactive), which would block GetClient().
-        // Instead, apply the Authorization header per-request via EnsureAuthHeader(...).
+        // Do NOT fetch/access tokens during HttpClient creation. Token acquisition can require
+        // the auth/JS pipeline to be ready. Apply Authorization per request instead.
         return _httpClientCache.Get(_authenticated, _baseUri, static baseUri =>
         {
-            var httpClientOptions = new HttpClientOptions
+            return new HttpClientOptions
             {
                 BaseAddress = baseUri
             };
-
-            return httpClientOptions;
         }, cancellationToken);
     }
 
     public ValueTask<string> GetAccessToken(CancellationToken cancellationToken = default) =>
         _sessionUtil.GetAccessToken(cancellationToken);
 
-    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true, bool? allowAnonymous = false,
+    public ValueTask<HttpResponseMessage> Post(string uri, object? obj, bool logResponse = true,
+        bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    {
+        return SendCore(HttpMethod.Post, uri, obj, allowAnonymous.GetValueOrDefault(), logRequest: true, logResponse,
+            cancellationToken);
+    }
+
+    public ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
+    {
+        return SendCore(HttpMethod.Post, options.Uri, options.Object, options.AllowAnonymous.GetValueOrDefault(),
+            options.LogRequest.GetValueOrDefault(), options.LogResponse.GetValueOrDefault(), cancellationToken);
+    }
+
+    public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false,
         CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions
-        {
-            Uri = uri,
-            Object = obj,
-            LogRequest = true,
-            LogResponse = logResponse,
-            AllowAnonymous = allowAnonymous
-        };
-
-        return Post(options, cancellationToken);
+        return SendCore(HttpMethod.Get, uri, body: null, allowAnonymous.GetValueOrDefault(), logRequest: true,
+            logResponse: true, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Post(RequestOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        bool anonymous = options.AllowAnonymous.GetValueOrDefault();
-        bool logReq = options.LogRequest.GetValueOrDefault();
-        bool logRes = options.LogResponse.GetValueOrDefault();
-
-        HttpClient client = await GetClient(anonymous, cancellationToken);
-
-        if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken);
-
-        using var content = options.Object?.ToHttpContent();
-
-        if (logReq)
-        {
-            string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, content, HttpMethod.Post, cancellationToken);
-        }
-
-        HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, options.Uri);
-        request.Content = content;
-
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
-
-        if (logRes)
-            await LogResponse(response, cancellationToken);
-
-        return response;
+        return SendCore(HttpMethod.Get, options.Uri, body: null, options.AllowAnonymous.GetValueOrDefault(),
+            options.LogRequest.GetValueOrDefault(), options.LogResponse.GetValueOrDefault(), cancellationToken);
     }
 
-    public ValueTask<HttpResponseMessage> Get(string uri, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Put(string uri, object obj, bool? allowAnonymous = false,
+        CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions
-        {
-            Uri = uri,
-            AllowAnonymous = allowAnonymous,
-            LogRequest = true,
-            LogResponse = true
-        };
-
-        return Get(options, cancellationToken);
+        return SendCore(HttpMethod.Put, uri, obj, allowAnonymous.GetValueOrDefault(), logRequest: true,
+            logResponse: true, cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Get(RequestOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        bool anonymous = options.AllowAnonymous.GetValueOrDefault();
-        bool logReq = options.LogRequest.GetValueOrDefault();
-        bool logRes = options.LogResponse.GetValueOrDefault();
-
-        HttpClient client = await GetClient(anonymous, cancellationToken);
-
-        if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken);
-
-        if (logReq)
-        {
-            string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Get, cancellationToken);
-        }
-
-        HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
-
-        HttpResponseMessage response = await client.GetAsync(options.Uri, completion, cancellationToken);
-
-        if (logRes)
-            await LogResponse(response, cancellationToken);
-
-        return response;
-    }
-
-    public ValueTask<HttpResponseMessage> Put(string uri, object obj, bool? allowAnonymous = false, CancellationToken cancellationToken = default)
-    {
-        var options = new RequestOptions
-        {
-            Uri = uri,
-            Object = obj,
-            LogRequest = true,
-            LogResponse = true,
-            AllowAnonymous = allowAnonymous
-        };
-
-        return Put(options, cancellationToken);
-    }
-
-    public async ValueTask<HttpResponseMessage> Put(RequestOptions options, CancellationToken cancellationToken = default)
-    {
-        bool anonymous = options.AllowAnonymous.GetValueOrDefault();
-        bool logReq = options.LogRequest.GetValueOrDefault();
-        bool logRes = options.LogResponse.GetValueOrDefault();
-
-        HttpClient client = await GetClient(anonymous, cancellationToken);
-
-        if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken);
-
-        using var content = options.Object?.ToHttpContent();
-
-        if (logReq)
-        {
-            string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, content, HttpMethod.Put, cancellationToken);
-        }
-
-        HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
-
-        using var request = new HttpRequestMessage(HttpMethod.Put, options.Uri);
-        request.Content = content;
-
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
-
-        if (logRes)
-            await LogResponse(response, cancellationToken);
-
-        return response;
+        return SendCore(HttpMethod.Put, options.Uri, options.Object, options.AllowAnonymous.GetValueOrDefault(),
+            options.LogRequest.GetValueOrDefault(), options.LogResponse.GetValueOrDefault(), cancellationToken);
     }
 
     public ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default)
     {
-        var options = new RequestOptions
-        {
-            Uri = uri,
-            LogRequest = true,
-            LogResponse = true
-        };
-
-        return Delete(options, cancellationToken);
+        return SendCore(HttpMethod.Delete, uri, body: null, allowAnonymous: false, logRequest: true, logResponse: true,
+            cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<HttpResponseMessage> Delete(RequestOptions options, CancellationToken cancellationToken = default)
     {
-        bool anonymous = options.AllowAnonymous.GetValueOrDefault();
-        bool logReq = options.LogRequest.GetValueOrDefault();
-        bool logRes = options.LogResponse.GetValueOrDefault();
-
-        HttpClient client = await GetClient(anonymous, cancellationToken);
-
-        if (!anonymous)
-            await EnsureAuthHeader(client, cancellationToken);
-
-        if (logReq)
-        {
-            string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Delete, cancellationToken);
-        }
-
-        HttpCompletionOption completion = logRes ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
-
-        using var request = new HttpRequestMessage(HttpMethod.Delete, options.Uri);
-
-        HttpResponseMessage response = await client.SendAsync(request, completion, cancellationToken);
-
-        if (logRes)
-            await LogResponse(response, cancellationToken);
-
-        return response;
+        return SendCore(HttpMethod.Delete, options.Uri, body: null, options.AllowAnonymous.GetValueOrDefault(),
+            options.LogRequest.GetValueOrDefault(), options.LogResponse.GetValueOrDefault(), cancellationToken);
     }
 
-    public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options,
+        CancellationToken cancellationToken = default)
     {
-        bool logReq = options.LogRequest.GetValueOrDefault();
-
-        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken);
-
-        await EnsureAuthHeader(client, cancellationToken);
+        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken).ConfigureAwait(false);
 
         using var content = new MultipartFormDataContent();
 
@@ -284,32 +154,78 @@ public sealed class ApiClient : IApiClient
             content.Add(jsonContent, "json");
         }
 
-        if (logReq)
+        bool effectiveLogRequest = _requestResponseLogging && options.LogRequest.GetValueOrDefault();
+
+        if (effectiveLogRequest)
         {
             string requestUri = BuildRequestUri(options.Uri);
-            await LogRequest(requestUri, null, HttpMethod.Post, cancellationToken);
+            await _logJsonInterop.LogRequest(requestUri, null, HttpMethod.Post, cancellationToken)
+                                 .ConfigureAwait(false);
         }
 
-        HttpResponseMessage response = await client.PostAsync(options.Uri, content, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, options.Uri);
+        request.Content = content;
+
+        request.Headers.Authorization = await GetAuthHeader(cancellationToken).ConfigureAwait(false);
+
+        return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                           .ConfigureAwait(false);
+    }
+
+    private async ValueTask<HttpResponseMessage> SendCore(HttpMethod method, string uri, object? body,
+        bool allowAnonymous, bool logRequest, bool logResponse, CancellationToken cancellationToken)
+    {
+        HttpClient client = await GetClient(allowAnonymous, cancellationToken).ConfigureAwait(false);
+
+        using var content = body?.ToHttpContent();
+
+        bool effectiveLogRequest = _requestResponseLogging && logRequest;
+        bool effectiveLogResponse = _requestResponseLogging && logResponse;
+
+        if (effectiveLogRequest)
+        {
+            string requestUri = BuildRequestUri(uri);
+            await _logJsonInterop.LogRequest(requestUri, content, method, cancellationToken).ConfigureAwait(false);
+        }
+
+        HttpCompletionOption completion = effectiveLogResponse
+            ? HttpCompletionOption.ResponseContentRead
+            : HttpCompletionOption.ResponseHeadersRead;
+
+        using var request = new HttpRequestMessage(method, uri);
+
+        if (content is not null)
+            request.Content = content;
+
+        if (!allowAnonymous)
+            request.Headers.Authorization = await GetAuthHeader(cancellationToken).ConfigureAwait(false);
+
+        HttpResponseMessage response =
+            await client.SendAsync(request, completion, cancellationToken).ConfigureAwait(false);
+
+        if (effectiveLogResponse)
+            await _logJsonInterop.LogResponse(response, cancellationToken).ConfigureAwait(false);
+
         return response;
     }
 
-    private async ValueTask EnsureAuthHeader(HttpClient client, CancellationToken cancellationToken)
+    private async ValueTask<AuthenticationHeaderValue> GetAuthHeader(CancellationToken cancellationToken)
     {
-        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken);
+        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken).ConfigureAwait(false);
 
-        if (string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
+        AuthenticationHeaderValue? cached = _cachedAuthHeader;
+
+        if (cached is not null && string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
         {
-            AuthenticationHeaderValue? cached = _cachedAuthHeader;
-            if (!ReferenceEquals(client.DefaultRequestHeaders.Authorization, cached))
-                client.DefaultRequestHeaders.Authorization = cached;
-
-            return;
+            return cached;
         }
 
+        var header = new AuthenticationHeaderValue(_authScheme, accessToken);
+
         _cachedAccessToken = accessToken;
-        _cachedAuthHeader = new AuthenticationHeaderValue(_authScheme, accessToken);
-        client.DefaultRequestHeaders.Authorization = _cachedAuthHeader;
+        _cachedAuthHeader = header;
+
+        return header;
     }
 
     private string BuildRequestUri(string uri)
@@ -317,18 +233,12 @@ public sealed class ApiClient : IApiClient
         if (_baseAddressTrimmed is null || uri.IsNullOrEmpty())
             return uri;
 
-        if (Uri.TryCreate(uri, UriKind.Absolute, out _))
+        if (uri.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            uri.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
             return uri;
+        }
 
-        if (uri[0] == '/')
-            return string.Concat(_baseAddressTrimmed, uri);
-
-        return string.Concat(_baseAddressTrimmed, "/", uri);
+        return uri[0] == '/' ? string.Concat(_baseAddressTrimmed, uri) : string.Concat(_baseAddressTrimmed, "/", uri);
     }
-
-    private ValueTask LogRequest(string requestUri, HttpContent? httpContent, HttpMethod? httpMethod, CancellationToken cancellationToken) =>
-        _requestResponseLogging ? _logJsonInterop.LogRequest(requestUri, httpContent, httpMethod, cancellationToken) : ValueTask.CompletedTask;
-
-    private ValueTask LogResponse(HttpResponseMessage response, CancellationToken cancellationToken) =>
-        _requestResponseLogging ? _logJsonInterop.LogResponse(response, cancellationToken) : ValueTask.CompletedTask;
 }
