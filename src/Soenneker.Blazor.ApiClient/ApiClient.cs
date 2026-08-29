@@ -51,16 +51,29 @@ public sealed class ApiClient : IApiClient
         if (!baseAddress.HasContent())
             throw new InvalidOperationException("BaseAddress must be set");
 
+        if (!Uri.TryCreate(baseAddress, UriKind.Absolute, out Uri? baseUri))
+            throw new InvalidOperationException("BaseAddress must be an absolute URI");
+
+        bool isHttps = string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+        bool isLoopbackHttp = baseUri.IsLoopback && string.Equals(baseUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
+
+        if (!isHttps && !isLoopbackHttp)
+            throw new InvalidOperationException("BaseAddress must use HTTPS unless it is a loopback HTTP URI");
+
         _baseAddressTrimmed = baseAddress.TrimEnd('/');
-        _baseUri = new Uri(baseAddress, UriKind.Absolute);
+        _baseUri = baseUri;
         _requestResponseLogging = requestResponseLogging;
     }
 
     public ValueTask<HttpClient> GetClient(bool? allowAnonymous = false, CancellationToken cancellationToken = default)
     {
+        EnsureInitialized();
+
+        string cacheKey = string.Concat(allowAnonymous.GetValueOrDefault() ? _anonymous : _authenticated, ":", _baseUri.AbsoluteUri);
+
         if (allowAnonymous.GetValueOrDefault())
         {
-            return _httpClientCache.Get(_anonymous, _baseUri, static baseUri =>
+            return _httpClientCache.Get(cacheKey, _baseUri, static baseUri =>
             {
                 return new HttpClientOptions
                 {
@@ -72,7 +85,7 @@ public sealed class ApiClient : IApiClient
         // Important for Blazor WASM:
         // Do NOT fetch/access tokens during HttpClient creation. Token acquisition can require
         // the auth/JS pipeline to be ready. Apply Authorization per request instead.
-        return _httpClientCache.Get(_authenticated, _baseUri, static baseUri =>
+        return _httpClientCache.Get(cacheKey, _baseUri, static baseUri =>
         {
             return new HttpClientOptions
             {
@@ -138,6 +151,9 @@ public sealed class ApiClient : IApiClient
     public async ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(options);
+        ValidateRequestUri(options.Uri, allowAnonymous: false);
+
         HttpClient client = await GetClient(allowAnonymous: false, cancellationToken).ConfigureAwait(false);
 
         using var content = new MultipartFormDataContent();
@@ -175,6 +191,8 @@ public sealed class ApiClient : IApiClient
     private async ValueTask<HttpResponseMessage> SendCore(HttpMethod method, string uri, object? body,
         bool allowAnonymous, bool logRequest, bool logResponse, CancellationToken cancellationToken)
     {
+        ValidateRequestUri(uri, allowAnonymous);
+
         HttpClient client = await GetClient(allowAnonymous, cancellationToken).ConfigureAwait(false);
 
         using var content = body?.ToHttpContent();
@@ -240,5 +258,27 @@ public sealed class ApiClient : IApiClient
         }
 
         return uri[0] == '/' ? string.Concat(_baseAddressTrimmed, uri) : string.Concat(_baseAddressTrimmed, "/", uri);
+    }
+
+    private void ValidateRequestUri(string uri, bool allowAnonymous)
+    {
+        EnsureInitialized();
+        ArgumentException.ThrowIfNullOrWhiteSpace(uri);
+
+        if (allowAnonymous || !Uri.TryCreate(uri, UriKind.Absolute, out Uri? target))
+            return;
+
+        if (!string.Equals(target.Scheme, _baseUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(target.Host, _baseUri.Host, StringComparison.OrdinalIgnoreCase) ||
+            target.Port != _baseUri.Port)
+        {
+            throw new InvalidOperationException("Authenticated requests cannot target a different origin than BaseAddress.");
+        }
+    }
+
+    private void EnsureInitialized()
+    {
+        if (_baseAddressTrimmed is null)
+            throw new InvalidOperationException("Initialize must be called before using the API client.");
     }
 }

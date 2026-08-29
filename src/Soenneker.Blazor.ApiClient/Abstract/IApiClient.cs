@@ -13,15 +13,15 @@ namespace Soenneker.Blazor.ApiClient.Abstract;
 public interface IApiClient
 {
     /// <summary>
-    /// Initializes the client with the specified base address and logging setting.
-    /// Must be called before performing any HTTP operations.
+    /// Initializes the client with the specified base address and logging setting. Must be called before performing any HTTP operations.
     /// </summary>
-    /// <param name="baseAddress">Base Address for the initialize operation.</param>
-    /// <param name="requestResponseLogging">request Response Logging that defines the request to send.</param>
+    /// <param name="baseAddress">An absolute HTTPS base address. HTTP is permitted only for loopback addresses.</param>
+    /// <param name="requestResponseLogging">Whether individual requests may log their request and response data through browser JSON logging.</param>
+    /// <exception cref="InvalidOperationException">Thrown when <paramref name="baseAddress"/> is missing, relative, or insecure.</exception>
     void Initialize(string baseAddress, bool requestResponseLogging);
 
     /// <summary>
-    /// Retrieves or creates an <see cref="HttpClient"/> instance configured for authenticated or anonymous requests.
+    /// Retrieves or creates the cached <see cref="HttpClient"/> for the selected request type. Authorization is applied by the request methods, not to this client.
     /// </summary>
     /// <param name="allowAnonymous">If true, allows anonymous requests (no bearer token); otherwise requires authentication.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -41,7 +41,7 @@ public interface IApiClient
     /// <summary>
     /// Sends a GET request to the specified URI.
     /// </summary>
-    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="uri">A relative URI, or an absolute URI. Authenticated absolute URIs must have the same origin as the configured base address.</param>
     /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
@@ -58,7 +58,7 @@ public interface IApiClient
     /// <summary>
     /// Sends a POST request with a JSON-serializable payload.
     /// </summary>
-    /// <param name="uri">The relative URI of the endpoint.</param>
+    /// <param name="uri">A relative URI, or an absolute URI. Authenticated absolute URIs must have the same origin as the configured base address.</param>
     /// <param name="obj">The object to serialize as JSON in the request body.</param>
     /// <param name="logResponse">Whether to log the response.</param>
     /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
@@ -78,7 +78,7 @@ public interface IApiClient
     /// <summary>
     /// Sends a PUT request with a JSON-serializable payload.
     /// </summary>
-    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="uri">A relative URI, or an absolute URI. Authenticated absolute URIs must have the same origin as the configured base address.</param>
     /// <param name="obj">The object to serialize as JSON in the request body.</param>
     /// <param name="allowAnonymous">If true, allows anonymous requests; otherwise uses authentication.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -96,7 +96,7 @@ public interface IApiClient
     /// <summary>
     /// Sends a DELETE request to the specified URI.
     /// </summary>
-    /// <param name="uri">The relative URI of the resource.</param>
+    /// <param name="uri">A relative URI, or an absolute URI with the same origin as the configured base address.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Delete(string uri, CancellationToken cancellationToken = default);
@@ -112,7 +112,7 @@ public interface IApiClient
     /// <summary>
     /// Uploads a file stream with optional JSON metadata.
     /// </summary>
-    /// <param name="options">Options including target URI, file stream, filename, and metadata object.</param>
+    /// <param name="options">Options including a same-origin target URI, file stream, filename, and metadata object. The supplied stream is disposed with the multipart request content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that returns the <see cref="HttpResponseMessage"/>.</returns>
     ValueTask<HttpResponseMessage> Upload(RequestUploadOptions options, CancellationToken cancellationToken = default);

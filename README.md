@@ -5,60 +5,109 @@
 
 # Soenneker.Blazor.ApiClient
 
-Defines methods for configuring and interacting with the API, including HTTP operations, authentication, and optional request/response logging.
+A scoped Blazor API client for JSON requests, authenticated session tokens, optional browser-console logging, and multipart uploads.
 
-## Install
+## Installation and registration
 
 ```bash
 dotnet add package Soenneker.Blazor.ApiClient
 ```
 
-## Quick start
-
 ```csharp
 using Soenneker.Blazor.ApiClient.Registrars;
-using Microsoft.Extensions.DependencyInjection;
 
-var services = new ServiceCollection();
-var result = services.AddApiClientAsScoped();
+builder.Services.AddApiClientAsScoped();
 ```
 
-Adds `IApiClient` as a scoped service.
+The registrar also adds the session, JSON logging, and shared `HttpClient` cache dependencies.
 
-## What you get
+## Initialize the scoped client
 
-- `IApiClient` — Defines methods for configuring and interacting with the API, including HTTP operations, authentication, and optional request/response logging.
-- `ApiClientRegistrar` — A lightweight and efficient API client wrapper for Blazor applications, simplifying HTTP communication with support for asynchronous calls, cancellation tokens, and JSON serialization.
-- `RequestOptions` — Represents the options for making an API request, including the URI, request payload, and logging settings.
-- `RequestUploadOptions` — Represents the options for uploading a file via an API request, extending `RequestOptions` with additional file upload properties.
+`Initialize()` must run before any request:
 
-## API at a glance
+```csharp
+using Soenneker.Blazor.ApiClient.Abstract;
 
-| API | What it does | Result / important behavior |
-| --- | --- | --- |
-| `IApiClient.Initialize(baseAddress, requestResponseLogging)` | Initializes the client with the specified base address and logging setting. Must be called before performing any HTTP operations. | Returns no value; the requested change is complete when the method returns. |
-| `IApiClient.GetClient(allowAnonymous, cancellationToken)` | Retrieves or creates an `HttpClient` instance configured for authenticated or anonymous requests. | A task that returns the configured `HttpClient`. |
-| `IApiClient.GetAccessToken(cancellationToken)` | Requests and returns a fresh access token using the configured authentication provider. | A task that returns the access token string. |
-| `IApiClient.Get(uri, allowAnonymous, cancellationToken)` | Sends a GET request to the specified URI. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Get(options, cancellationToken)` | Sends a GET request using the specified `RequestOptions`. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Post(uri, obj, logResponse, allowAnonymous, cancellationToken)` | Sends a POST request with a JSON-serializable payload. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Post(options, cancellationToken)` | Sends a POST request using the specified `RequestOptions`. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Put(uri, obj, allowAnonymous, cancellationToken)` | Sends a PUT request with a JSON-serializable payload. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Put(options, cancellationToken)` | Sends a PUT request using the specified `RequestOptions`. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Delete(uri, cancellationToken)` | Sends a DELETE request to the specified URI. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Delete(options, cancellationToken)` | Sends a DELETE request using the specified `RequestOptions`. | A task that returns the `HttpResponseMessage`. |
-| `IApiClient.Upload(options, cancellationToken)` | Uploads a file stream with optional JSON metadata. | A task that returns the `HttpResponseMessage`. |
-| `ApiClientRegistrar.AddApiClientAsScoped(services)` | Adds `IApiClient` as a scoped service. | The same service collection, so additional registrations can be chained. |
-| `RequestOptions.Uri` | Gets or sets the URI for the API request. | Gets or sets the URI for the API request. |
-| `RequestOptions.Object` | Gets or sets an optional object that will be serialized and sent as the request body. | Gets or sets an optional object that will be serialized and sent as the request body. |
-| `RequestOptions.AllowAnonymous` | Gets or sets a value indicating whether the request should allow anonymous access. Defaults to null (false). | Gets or sets a value indicating whether the request should allow anonymous access. Defaults to null (false). |
-| `RequestOptions.LogResponse` | Gets or sets a value indicating whether the response should be logged. Defaults to null (false). | Gets or sets a value indicating whether the response should be logged. Defaults to null (false). |
-| `RequestOptions.LogRequest` | Gets or sets a value indicating whether the request should be logged. Defaults to null (false). | Gets or sets a value indicating whether the request should be logged. Defaults to null (false). |
+public sealed class WeatherApi
+{
+    private readonly IApiClient _api;
 
-## Important behavior
+    public WeatherApi(IApiClient api, IConfiguration configuration)
+    {
+        _api = api;
+        _api.Initialize(
+            configuration["Api:BaseUrl"]!,
+            requestResponseLogging: false);
+    }
+}
+```
 
-- `IApiClient.GetAccessToken(cancellationToken)`: Thrown if the user is not authenticated or if the token could not be acquired.
+The base address must be absolute and HTTPS. Plain HTTP is accepted only for loopback development addresses.
 
-## Practical notes
+## Authenticated JSON request
 
-- Cancellation stops pending work; it does not undo work that has already completed.
+```csharp
+public async Task<WeatherForecast?> GetForecast(
+    CancellationToken cancellationToken)
+{
+    using HttpResponseMessage response = await _api.Get(
+        "weather/forecast",
+        cancellationToken: cancellationToken);
+
+    response.EnsureSuccessStatusCode();
+    return await response.Content.ReadFromJsonAsync<WeatherForecast>(
+        cancellationToken);
+}
+```
+
+Authenticated wrapper methods request the current access token from `ISessionUtil` and attach it as a bearer header to that request. Token headers are reused only while the token string remains unchanged.
+
+Use `allowAnonymous: true` for a public endpoint:
+
+```csharp
+using HttpResponseMessage response = await _api.Get(
+    "health",
+    allowAnonymous: true,
+    cancellationToken: cancellationToken);
+```
+
+Authenticated requests cannot use an absolute URL on a different scheme, host, or port than the configured base address. This prevents forwarding a session token to another origin. Anonymous requests may use absolute URLs.
+
+## Request options
+
+```csharp
+using Soenneker.Blazor.ApiClient.Dtos;
+
+using HttpResponseMessage response = await _api.Post(
+    new RequestOptions
+    {
+        Uri = "orders",
+        Object = new { productId, quantity = 1 },
+        LogRequest = true,
+        LogResponse = false
+    },
+    cancellationToken);
+```
+
+`LogRequest` and `LogResponse` take effect only when `requestResponseLogging` was enabled during initialization. Logging may expose request or response data in the browser console; keep it disabled for sensitive production traffic.
+
+## File upload
+
+```csharp
+await using FileStream stream = File.OpenRead(path);
+
+using HttpResponseMessage response = await _api.Upload(
+    new RequestUploadOptions
+    {
+        Uri = "documents",
+        Stream = stream,
+        FileName = Path.GetFileName(path),
+        Object = new { category = "invoice" },
+        LogRequest = true
+    },
+    cancellationToken);
+```
+
+Uploads are always authenticated. The multipart names are `file` for the binary stream and `json` for optional serialized metadata. The upload disposes its multipart content, which also disposes the supplied stream; do not reuse it afterward.
+
+All methods return the raw `HttpResponseMessage`. The caller owns that response and is responsible for disposal, status handling, and response deserialization. `GetClient()` returns the cached transport client but does not attach authorization automatically; prefer the wrapper methods for authenticated calls.
