@@ -16,8 +16,8 @@ public interface IApiClient
     /// Initializes the client with the specified base address and logging setting.
     /// Must be called before performing any HTTP operations.
     /// </summary>
-    /// <param name="baseAddress">The base URI of the API endpoints.</param>
-    /// <param name="requestResponseLogging">Whether to enable detailed request and response logging.</param>
+    /// <param name="baseAddress">Base Address for the initialize operation.</param>
+    /// <param name="requestResponseLogging">request Response Logging that defines the request to send.</param>
     void Initialize(string baseAddress, bool requestResponseLogging);
 
     /// <summary>
@@ -31,6 +31,7 @@ public interface IApiClient
     /// <summary>
     /// Requests and returns a fresh access token using the configured authentication provider.
     /// </summary>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
     /// <returns>A task that returns the access token string.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown if the user is not authenticated or if the token could not be acquired.

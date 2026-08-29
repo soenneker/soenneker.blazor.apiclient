@@ -15,6 +15,8 @@ public static class ApiClientRegistrar
     /// <summary>
     /// Adds <see cref="IApiClient"/> as a scoped service. <para/>
     /// </summary>
+    /// <param name="services">Service collection that receives the registration.</param>
+    /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddApiClientAsScoped(this IServiceCollection services)
     {
         services.AddLogJsonInteropAsScoped().AddSessionUtilAsScoped().AddHttpClientCacheAsSingleton().TryAddScoped<IApiClient, ApiClient>();
