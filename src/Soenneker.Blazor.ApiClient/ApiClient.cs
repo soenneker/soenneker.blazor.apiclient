@@ -1,5 +1,3 @@
-using Soenneker.Extensions.ValueTask;
-using Soenneker.Extensions.Task;
 using Soenneker.Blazor.ApiClient.Abstract;
 using Soenneker.Blazor.ApiClient.Dtos;
 using Soenneker.Blazor.LogJson.Abstract;
@@ -156,7 +154,7 @@ public sealed class ApiClient : IApiClient
         ArgumentNullException.ThrowIfNull(options);
         ValidateRequestUri(options.Uri, allowAnonymous: false);
 
-        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken).NoSync();
+        HttpClient client = await GetClient(allowAnonymous: false, cancellationToken).ConfigureAwait(false);
 
         using var content = new MultipartFormDataContent();
 
@@ -178,16 +176,16 @@ public sealed class ApiClient : IApiClient
         {
             string requestUri = BuildRequestUri(options.Uri);
             await _logJsonInterop.LogRequest(requestUri, null, HttpMethod.Post, cancellationToken)
-                                 .NoSync();
+                                 .ConfigureAwait(false);
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, options.Uri);
         request.Content = content;
 
-        request.Headers.Authorization = await GetAuthHeader(cancellationToken).NoSync();
+        request.Headers.Authorization = await GetAuthHeader(cancellationToken).ConfigureAwait(false);
 
         return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                           .NoSync();
+                           .ConfigureAwait(false);
     }
 
     private async ValueTask<HttpResponseMessage> SendCore(HttpMethod method, string uri, object? body,
@@ -195,7 +193,7 @@ public sealed class ApiClient : IApiClient
     {
         ValidateRequestUri(uri, allowAnonymous);
 
-        HttpClient client = await GetClient(allowAnonymous, cancellationToken).NoSync();
+        HttpClient client = await GetClient(allowAnonymous, cancellationToken).ConfigureAwait(false);
 
         using var content = body?.ToHttpContent();
 
@@ -205,7 +203,7 @@ public sealed class ApiClient : IApiClient
         if (effectiveLogRequest)
         {
             string requestUri = BuildRequestUri(uri);
-            await _logJsonInterop.LogRequest(requestUri, content, method, cancellationToken).NoSync();
+            await _logJsonInterop.LogRequest(requestUri, content, method, cancellationToken).ConfigureAwait(false);
         }
 
         HttpCompletionOption completion = effectiveLogResponse
@@ -218,20 +216,20 @@ public sealed class ApiClient : IApiClient
             request.Content = content;
 
         if (!allowAnonymous)
-            request.Headers.Authorization = await GetAuthHeader(cancellationToken).NoSync();
+            request.Headers.Authorization = await GetAuthHeader(cancellationToken).ConfigureAwait(false);
 
         HttpResponseMessage response =
-            await client.SendAsync(request, completion, cancellationToken).NoSync();
+            await client.SendAsync(request, completion, cancellationToken).ConfigureAwait(false);
 
         if (effectiveLogResponse)
-            await _logJsonInterop.LogResponse(response, cancellationToken).NoSync();
+            await _logJsonInterop.LogResponse(response, cancellationToken).ConfigureAwait(false);
 
         return response;
     }
 
     private async ValueTask<AuthenticationHeaderValue> GetAuthHeader(CancellationToken cancellationToken)
     {
-        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken).NoSync();
+        string accessToken = await _sessionUtil.GetAccessToken(cancellationToken).ConfigureAwait(false);
 
         AuthenticationHeaderValue? cached = _cachedAuthHeader;
 
