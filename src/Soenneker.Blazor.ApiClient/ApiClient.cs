@@ -25,6 +25,8 @@ public sealed class ApiClient : IApiClient
 
     private string? _baseAddressTrimmed;
     private Uri _baseUri = null!;
+    private string _anonymousCacheKey = null!;
+    private string _authenticatedCacheKey = null!;
     private bool _requestResponseLogging;
 
     // Header cache only. Token retrieval is still delegated to SessionUtil.
@@ -62,6 +64,8 @@ public sealed class ApiClient : IApiClient
 
         _baseAddressTrimmed = baseAddress.TrimEnd('/');
         _baseUri = baseUri;
+        _anonymousCacheKey = string.Concat(_anonymous, ":", baseUri.AbsoluteUri);
+        _authenticatedCacheKey = string.Concat(_authenticated, ":", baseUri.AbsoluteUri);
         _requestResponseLogging = requestResponseLogging;
     }
 
@@ -69,22 +73,8 @@ public sealed class ApiClient : IApiClient
     {
         EnsureInitialized();
 
-        string cacheKey = string.Concat(allowAnonymous.GetValueOrDefault() ? _anonymous : _authenticated, ":", _baseUri.AbsoluteUri);
+        string cacheKey = allowAnonymous.GetValueOrDefault() ? _anonymousCacheKey : _authenticatedCacheKey;
 
-        if (allowAnonymous.GetValueOrDefault())
-        {
-            return _httpClientCache.Get(cacheKey, _baseUri, static baseUri =>
-            {
-                return new HttpClientOptions
-                {
-                    BaseAddress = baseUri
-                };
-            }, cancellationToken);
-        }
-
-        // Important for Blazor WASM:
-        // Do NOT fetch/access tokens during HttpClient creation. Token acquisition can require
-        // the auth/JS pipeline to be ready. Apply Authorization per request instead.
         return _httpClientCache.Get(cacheKey, _baseUri, static baseUri =>
         {
             return new HttpClientOptions
