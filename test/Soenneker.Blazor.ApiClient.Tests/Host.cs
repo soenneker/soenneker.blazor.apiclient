@@ -37,34 +37,4 @@ public class Host : UnitTestHost
 
         services.AddApiClientAsScoped();
     }
-
-    private sealed class TestNavigationManager : NavigationManager
-    {
-        public TestNavigationManager()
-        {
-            Initialize("https://localhost/", "https://localhost/");
-        }
-
-        protected override void NavigateToCore(string uri, bool forceLoad)
-        {
-        }
-    }
-
-    private sealed class TestAccessTokenProvider : IAccessTokenProvider
-    {
-        public ValueTask<AccessTokenResult> RequestAccessToken() =>
-            throw new InvalidOperationException("Token acquisition is not expected in these tests.");
-
-        public ValueTask<AccessTokenResult> RequestAccessToken(AccessTokenRequestOptions options) =>
-            throw new InvalidOperationException("Token acquisition is not expected in these tests.");
-    }
-
-    private sealed class TestJsRuntime : IJSRuntime
-    {
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
-            throw new InvalidOperationException("JavaScript interop is not expected in these tests.");
-
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
-            throw new InvalidOperationException("JavaScript interop is not expected in these tests.");
-    }
 }
