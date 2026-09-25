@@ -10,6 +10,7 @@ namespace Soenneker.Blazor.ApiClient.Abstract;
 /// Defines methods for configuring and interacting with the API,
 /// including HTTP operations, authentication, and optional request/response logging.
 /// </summary>
+/// <remarks>Register a source-generated JsonSerializerContext covering application payloads. JSON contracts are never discovered through reflection.</remarks>
 public interface IApiClient
 {
     /// <summary>
