@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
@@ -34,6 +35,7 @@ public class Host : UnitTestHost
         services.AddSingleton<NavigationManager, TestNavigationManager>();
         services.AddSingleton<IAccessTokenProvider, TestAccessTokenProvider>();
         services.AddSingleton<IJSRuntime, TestJsRuntime>();
+        services.AddSingleton<JsonSerializerContext>(TestJsonSerializerContext.Default);
 
         services.AddApiClientAsScoped();
     }
