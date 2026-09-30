@@ -27,7 +27,7 @@ public class ApiClientTests : HostedUnitTest
     }
 
     [Test]
-    public async Task Rejects_cross_origin_authenticated_request()
+    public async ValueTask Rejects_cross_origin_authenticated_request()
     {
         _apiClient.Initialize("https://api.example.com", false);
 
