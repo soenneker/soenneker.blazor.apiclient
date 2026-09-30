@@ -19,7 +19,7 @@ namespace Soenneker.Blazor.ApiClient;
 
 public sealed class ApiClient : IApiClient
 {
-    private readonly JsonSerializerContext _jsonContext;
+    private readonly JsonSerializerContext? _jsonContext;
 
 
     private readonly ILogJsonInterop _logJsonInterop;
@@ -44,13 +44,17 @@ public sealed class ApiClient : IApiClient
     private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
     private const string _authenticated = $"{nameof(ApiClient)}-authenticated";
 
-    public ApiClient(JsonSerializerContext jsonContext, ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
+    public ApiClient(ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache, JsonSerializerContext? jsonContext = null)
     {
-        _jsonContext = jsonContext ?? throw new System.ArgumentNullException(nameof(jsonContext));
+        _jsonContext = jsonContext;
         _sessionUtil = sessionUtil;
         _logJsonInterop = logJsonInterop;
         _httpClientCache = httpClientCache;
     }
+
+    private string? Serialize(object value) => _jsonContext is null
+        ? JsonUtil.Serialize(value)
+        : System.Text.Json.JsonSerializer.Serialize(value, value.GetType(), _jsonContext);
 
     public void Initialize(string baseAddress, bool requestResponseLogging)
     {
@@ -159,7 +163,7 @@ public sealed class ApiClient : IApiClient
 
         if (options.Object is not null)
         {
-            string? json = System.Text.Json.JsonSerializer.Serialize(options.Object, options.Object.GetType(), _jsonContext);
+            string? json = Serialize(options.Object);
             var jsonContent = new StringContent(json ?? "null", _utf8Encoding, "application/json");
             content.Add(jsonContent, "json");
         }
@@ -190,7 +194,7 @@ public sealed class ApiClient : IApiClient
         HttpClient client = await GetClient(allowAnonymous, cancellationToken).ConfigureAwait(false);
 
         using HttpContent? content = body is null ? null : new StringContent(
-            System.Text.Json.JsonSerializer.Serialize(body, body.GetType(), _jsonContext), _utf8Encoding, "application/json");
+            Serialize(body) ?? "null", _utf8Encoding, "application/json");
 
         bool effectiveLogRequest = _requestResponseLogging && logRequest;
         bool effectiveLogResponse = _requestResponseLogging && logResponse;
