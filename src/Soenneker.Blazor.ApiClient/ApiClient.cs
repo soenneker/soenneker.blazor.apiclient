@@ -10,7 +10,6 @@ using Soenneker.Utils.Json;
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,10 +30,8 @@ public sealed class ApiClient : IApiClient
     private bool _requestResponseLogging;
 
     // Header cache only. Token retrieval is still delegated to SessionUtil.
-    private string? _cachedAccessToken;
     private AuthenticationHeaderValue? _cachedAuthHeader;
 
-    private static readonly Encoding _utf8Encoding = new UTF8Encoding(false);
     private const string _authScheme = "Bearer";
 
     private static readonly MediaTypeHeaderValue _octetStreamMediaType = new("application/octet-stream");
@@ -156,8 +153,7 @@ public sealed class ApiClient : IApiClient
 
         if (options.Object is not null)
         {
-            string? json = JsonUtil.Serialize(options.Object);
-            var jsonContent = new StringContent(json ?? "null", _utf8Encoding, "application/json");
+            ByteArrayContent jsonContent = CreateJsonContent(options.Object);
             content.Add(jsonContent, "json");
         }
 
@@ -186,8 +182,7 @@ public sealed class ApiClient : IApiClient
 
         HttpClient client = await GetClient(allowAnonymous, cancellationToken).ConfigureAwait(false);
 
-        using HttpContent? content = body is null ? null : new StringContent(
-            JsonUtil.Serialize(body) ?? "null", _utf8Encoding, "application/json");
+        using HttpContent? content = body is null ? null : CreateJsonContent(body);
 
         bool effectiveLogRequest = _requestResponseLogging && logRequest;
         bool effectiveLogResponse = _requestResponseLogging && logResponse;
@@ -225,17 +220,23 @@ public sealed class ApiClient : IApiClient
 
         AuthenticationHeaderValue? cached = _cachedAuthHeader;
 
-        if (cached is not null && string.Equals(_cachedAccessToken, accessToken, StringComparison.Ordinal))
+        if (cached is not null && string.Equals(cached.Parameter, accessToken, StringComparison.Ordinal))
         {
             return cached;
         }
 
         var header = new AuthenticationHeaderValue(_authScheme, accessToken);
 
-        _cachedAccessToken = accessToken;
         _cachedAuthHeader = header;
 
         return header;
+    }
+
+    private static ByteArrayContent CreateJsonContent(object body)
+    {
+        var content = new ByteArrayContent(JsonUtil.SerializeToUtf8Bytes(body));
+        content.Headers.TryAddWithoutValidation("Content-Type", "application/json; charset=utf-8");
+        return content;
     }
 
     private string BuildRequestUri(string uri)
