@@ -9,6 +9,7 @@ namespace Soenneker.Blazor.ApiClient.Abstract;
 /// <summary>
 /// Defines methods for configuring and interacting with the API,
 /// including HTTP operations, authentication, and optional request/response logging.
+/// Construct the client with a generated JSON context covering request payloads when trimming.
 /// </summary>
 public interface IApiClient
 {

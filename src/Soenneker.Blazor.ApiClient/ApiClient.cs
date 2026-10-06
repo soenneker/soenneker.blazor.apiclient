@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Soenneker.Blazor.ApiClient.Abstract;
 using Soenneker.Blazor.ApiClient.Dtos;
 using Soenneker.Blazor.LogJson.Abstract;
@@ -19,6 +22,8 @@ public sealed class ApiClient : IApiClient
 {
 
 
+    private readonly Func<object, byte[]> _serialize;
+
     private readonly ILogJsonInterop _logJsonInterop;
     private readonly IHttpClientCache _httpClientCache;
     private readonly ISessionUtil _sessionUtil;
@@ -39,8 +44,20 @@ public sealed class ApiClient : IApiClient
     private const string _anonymous = $"{nameof(ApiClient)}-anonymous";
     private const string _authenticated = $"{nameof(ApiClient)}-authenticated";
 
+    [RequiresUnreferencedCode("The legacy serializer uses reflection. Supply a generated JsonSerializerContext instead.")]
+    [RequiresDynamicCode("The legacy serializer may require runtime code generation. Supply a generated JsonSerializerContext instead.")]
     public ApiClient(ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache)
     {
+        _serialize = static value => JsonUtil.SerializeToUtf8Bytes(value);
+        _sessionUtil = sessionUtil;
+        _logJsonInterop = logJsonInterop;
+        _httpClientCache = httpClientCache;
+    }
+
+    public ApiClient(ISessionUtil sessionUtil, ILogJsonInterop logJsonInterop, IHttpClientCache httpClientCache, JsonSerializerContext jsonContext)
+    {
+        ArgumentNullException.ThrowIfNull(jsonContext);
+        _serialize = value => JsonSerializer.SerializeToUtf8Bytes(value, value.GetType(), jsonContext);
         _sessionUtil = sessionUtil;
         _logJsonInterop = logJsonInterop;
         _httpClientCache = httpClientCache;
@@ -232,9 +249,9 @@ public sealed class ApiClient : IApiClient
         return header;
     }
 
-    private static ByteArrayContent CreateJsonContent(object body)
+    private ByteArrayContent CreateJsonContent(object body)
     {
-        var content = new ByteArrayContent(JsonUtil.SerializeToUtf8Bytes(body));
+        var content = new ByteArrayContent(_serialize(body));
         content.Headers.TryAddWithoutValidation("Content-Type", "application/json; charset=utf-8");
         return content;
     }
