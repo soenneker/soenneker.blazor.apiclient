@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using AwesomeAssertions;
 using Soenneker.Blazor.ApiClient.Abstract;
 using Soenneker.Tests.HostedUnit;
+using System.Threading;
 
 namespace Soenneker.Blazor.ApiClient.Tests;
 
@@ -27,11 +28,11 @@ public class ApiClientTests : HostedUnitTest
     }
 
     [Test]
-    public async ValueTask Rejects_cross_origin_authenticated_request()
+    public async ValueTask Rejects_cross_origin_authenticated_request(CancellationToken cancellationToken)
     {
         _apiClient.Initialize("https://api.example.com", false);
 
-        Func<Task> act = async () => await _apiClient.Get("https://other.example.com/data");
+        Func<Task> act = async () => await _apiClient.Get("https://other.example.com/data", cancellationToken: cancellationToken);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
