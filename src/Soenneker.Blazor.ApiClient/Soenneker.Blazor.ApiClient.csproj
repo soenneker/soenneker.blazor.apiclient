@@ -45,13 +45,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Blazor.LogJson" Version="4.0.1915" />
-        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="4.0.2790" />
-        <PackageReference Include="Soenneker.Extensions.Object" Version="4.0.4396" />
+        <PackageReference Include="Soenneker.Blazor.LogJson" Version="4.0.1916" />
+        <PackageReference Include="Soenneker.Blazor.Utils.Session" Version="4.0.2803" />
+        <PackageReference Include="Soenneker.Extensions.Object" Version="4.0.4397" />
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="4.0.2110" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.776" />
+        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.777" />
     </ItemGroup>
 </Project>
