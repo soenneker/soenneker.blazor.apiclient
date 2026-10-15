@@ -52,6 +52,6 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
-        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.794" />
+        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.799" />
     </ItemGroup>
 </Project>
