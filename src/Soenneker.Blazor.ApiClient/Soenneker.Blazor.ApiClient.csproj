@@ -50,7 +50,4 @@
         <PackageReference Include="Soenneker.Extensions.Object" Version="11.0.4427" />
         <PackageReference Include="Soenneker.Utils.HttpClientCache" Version="11.0.2139" />
     </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Soenneker.Extensions.String" Version="4.0.800" />
-    </ItemGroup>
 </Project>
